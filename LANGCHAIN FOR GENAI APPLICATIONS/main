@@ -1,0 +1,986 @@
+# LANGCHAIN FOR GENAI APPLICATIONS
+
+**Subject:** Data Science – Gen AI
+
+## Section A: Concept Application
+
+---
+
+### Q1. Fundamental difference between a Generative model and a Discriminative model
+
+| Aspect | Generative Model | Discriminative Model |
+|---|---|---|
+| **Goal** | Learns how the data is created so it can **generate new data** | Learns the **boundary between classes** so it can classify data |
+| **What it learns** | The joint probability **P(X, Y)** – i.e., the full distribution of inputs and outputs together | The conditional probability **P(Y \| X)** – i.e., "given this input, what is the label?" |
+| **Output** | Can create brand-new content (text, images, audio, etc.) | Gives a class label or a decision (spam/not-spam, cat/dog, etc.) |
+| **Examples** | GPT, DALL-E, VAE, GAN | Logistic Regression, SVM, Random Forest |
+
+**In the product-description scenario:**  
+A **generative model** is the right choice because we need the model to **create new text** (product descriptions) from bullet points. A discriminative model could only classify or label existing text — it cannot produce new sentences.
+
+**In simple words:**  
+- **Generative** = "Create something new"  
+- **Discriminative** = "Choose between existing options"
+
+---
+
+### Q2. Spam email detection — Generative or Discriminative?
+
+**Answer:** A **Discriminative model** is better suited for spam detection.
+
+**Why?**
+
+1. **The task is classification** — we only need to decide between two labels: *spam* or *not spam*. We do not need to generate new emails.
+2. **Discriminative models focus on the decision boundary** — they learn the features that separate spam from legitimate emails (e.g., certain keywords, sender patterns). This makes them more accurate for classification.
+3. **They are simpler and faster** — models like Logistic Regression, Naïve Bayes (discriminative usage), SVM, or a fine-tuned BERT classifier work very well for this kind of binary classification.
+4. **Less data needed** — discriminative models generally need less training data than generative models because they only model the boundary, not the entire data distribution.
+
+**Common models used for spam detection:**
+- Naïve Bayes Classifier
+- Support Vector Machines (SVM)
+- Random Forest
+- Fine-tuned BERT / DistilBERT
+
+---
+
+### Q3. ChatGPT, DALL-E, and GitHub Copilot — Output types
+
+| Tool | Primary Output | Use Case Example |
+|---|---|---|
+| **ChatGPT** | **Text** (natural language) | Answering questions, writing essays, summarizing documents, chatbots |
+| **DALL-E** | **Images** (visual content) | Creating illustrations from text prompts, generating marketing graphics, concept art |
+| **GitHub Copilot** | **Code** (programming source code) | Auto-completing code, suggesting functions, generating boilerplate code in IDEs |
+
+**Summary:**
+- **ChatGPT** → Produces **text** output
+- **DALL-E** → Produces **image** output
+- **GitHub Copilot** → Produces **code** output
+
+All three are generative AI tools, but each specializes in a different modality (text, image, and code respectively).
+
+---
+
+### Q4. Two factors that enabled the Generative AI breakthrough
+
+Although the foundational research (neural networks, transformers, GANs) existed for decades, two key factors made the recent breakthrough possible:
+
+**Factor 1 — Massive Computational Power (GPUs & Cloud Computing)**
+- Modern GPUs (like NVIDIA A100, H100) and cloud platforms (AWS, Google Cloud, Azure) provide the enormous computing power needed to train models with billions of parameters.
+- Training GPT-3 (175 billion parameters) would have been practically impossible with the hardware available even 10 years ago.
+
+**Factor 2 — Availability of Huge Datasets**
+- The internet has generated an unprecedented amount of text, images, and code data.
+- Large-scale datasets (Common Crawl, Wikipedia, GitHub repositories, image datasets) gave models enough diverse data to learn patterns and generate high-quality outputs.
+
+---
+
+### Q5. Category of generative model used for text-to-image generation
+
+**Answer:** **Diffusion Models** are most commonly used for text-to-image generation today.
+
+**Explanation:**
+- DALL-E 2 and DALL-E 3 use **diffusion-based architectures**.
+- Other popular text-to-image models like **Stable Diffusion** and **Midjourney** also use diffusion models.
+- **How diffusion models work (simplified):**
+  1. **Forward process:** Gradually add random noise to an image until it becomes pure noise.
+  2. **Reverse process:** Train the model to remove noise step-by-step, guided by the text prompt, to reconstruct a meaningful image.
+
+**Note:** Earlier approaches used **GANs (Generative Adversarial Networks)** and **VAEs (Variational Autoencoders)** for image generation, but diffusion models have surpassed them in quality and are now the industry standard.
+
+---
+
+---
+
+## Section B: Practical Tasks
+
+---
+
+### B1. RAG Pipeline using LangChain's PyPDFLoader and ChromaDB
+
+> Build a Retrieval-Augmented Generation (RAG) pipeline to perform semantic searches over corporate policy documents.
+
+#### Step 2 — Full RAG Pipeline Code
+
+```python
+# ============================================================
+# RAG Pipeline: Semantic Search over Corporate Policy PDFs
+# ============================================================
+
+# --- Import required libraries ---
+from langchain_community.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import Chroma
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain.chains import RetrievalQA
+import os
+
+# --- Step 1: Set up your API key ---
+os.environ["OPENAI_API_KEY"] = "openai-api-key-here"
+
+# --- Step 2: Load the PDF document ---
+# PyPDFLoader reads each page of the PDF as a separate document
+loader = PyPDFLoader("corporate_policy.pdf")
+pages = loader.load()
+
+print(f"Total pages loaded: {len(pages)}")
+
+# --- Step 3: Split the document into smaller chunks ---
+# We split because LLMs have a token limit and smaller chunks
+# give more precise search results
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=500,         # Each chunk will have at most 500 characters
+    chunk_overlap=50        # 50 characters overlap between chunks for context
+)
+chunks = text_splitter.split_documents(pages)
+
+print(f"Total chunks created: {len(chunks)}")
+
+# --- Step 4: Create embeddings and store in ChromaDB ---
+# Embeddings convert text into numerical vectors for similarity search
+embeddings = OpenAIEmbeddings()
+
+# ChromaDB stores these vectors locally for fast retrieval
+vector_store = Chroma.from_documents(
+    documents=chunks,
+    embedding=embeddings,
+    persist_directory="./chroma_db"   # Save the database locally
+)
+
+print("Vector store created and saved!")
+
+# --- Step 5: Create a retriever ---
+# The retriever will find the top 3 most relevant chunks for any query
+retriever = vector_store.as_retriever(
+    search_type="similarity",
+    search_kwargs={"k": 3}    # Return top 3 matching chunks
+)
+
+# --- Step 6: Create the RAG chain ---
+# This chain combines retrieval (finding relevant docs) with generation (LLM answer)
+llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+
+qa_chain = RetrievalQA.from_chain_type(
+    llm=llm,
+    chain_type="stuff",         # "stuff" = put all retrieved docs into one prompt
+    retriever=retriever,
+    return_source_documents=True  # Also return which documents were used
+)
+
+# --- Step 7: Ask a question ---
+query = "What is the company's leave policy for new employees?"
+result = qa_chain.invoke({"query": query})
+
+# --- Step 8: Display the answer ---
+print("\n--- ANSWER ---")
+print(result["result"])
+
+print("\n--- SOURCE DOCUMENTS ---")
+for i, doc in enumerate(result["source_documents"]):
+    print(f"\nSource {i+1} (Page {doc.metadata.get('page', 'N/A')}):")
+    print(doc.page_content[:200])  # Show first 200 chars of each source
+```
+
+---
+
+### B2. Autonomous Agent with DuckDuckGo Search and Math Tools
+
+> Build an agent that can search the web and do calculations to solve multi-step queries.
+
+#### Full Agent Code
+
+```python
+# ============================================================
+# Autonomous Agent: Research + Calculation
+# ============================================================
+
+# --- Import required libraries ---
+from langchain_openai import ChatOpenAI
+from langchain.agents import initialize_agent, AgentType
+from langchain_community.tools import DuckDuckGoSearchRun
+from langchain.agents import Tool
+from langchain.chains import LLMMathChain
+import os
+
+# --- Step 1: Set up API key ---
+os.environ["OPENAI_API_KEY"] = "openai-api-key-here"
+
+# --- Step 2: Create the LLM ---
+llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+
+# --- Step 3: Set up the tools ---
+
+# Tool 1: DuckDuckGo Search — for searching the internet
+search = DuckDuckGoSearchRun()
+search_tool = Tool(
+    name="Web Search",
+    func=search.run,
+    description="Use this tool to search the internet for current information, "
+                "news, facts, or any real-time data."
+)
+
+# Tool 2: LLM Math — for doing calculations
+math_chain = LLMMathChain.from_llm(llm=llm, verbose=True)
+math_tool = Tool(
+    name="Calculator",
+    func=math_chain.run,
+    description="Use this tool to solve math problems. "
+                "Input should be a math expression like '200 * 1.15'."
+)
+
+# --- Step 4: Combine tools into a list ---
+tools = [search_tool, math_tool]
+
+# --- Step 5: Initialize the agent ---
+# ZERO_SHOT_REACT_DESCRIPTION means the agent decides which tool to use
+# based on the tool descriptions — no prior examples needed
+agent = initialize_agent(
+    tools=tools,
+    llm=llm,
+    agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+    verbose=True,          # Show the agent's thought process
+    handle_parsing_errors=True  # Handle any parsing issues gracefully
+)
+
+# --- Step 6: Run a multi-step query ---
+# This query requires BOTH searching and calculating
+query = (
+    "What is the current population of India? "
+    "If the population grows by 1.5% per year, what will it be in 5 years?"
+)
+
+result = agent.invoke({"input": query})
+
+print("\n--- FINAL ANSWER ---")
+print(result["output"])
+```
+
+---
+
+### B3. Persistent Conversational Interface with ConversationSummaryBufferMemory
+
+> Build a FastAPI chatbot that remembers conversation history while saving tokens.
+
+#### Full Chatbot Code
+
+```python
+# ============================================================
+# FastAPI Chatbot with Persistent Summary Memory
+# ============================================================
+
+# --- Import required libraries ---
+from fastapi import FastAPI
+from pydantic import BaseModel
+from langchain_openai import ChatOpenAI
+from langchain.memory import ConversationSummaryBufferMemory
+from langchain.chains import ConversationChain
+import os
+
+# --- Step 1: Set up API key ---
+os.environ["OPENAI_API_KEY"] = "your-openai-api-key-here"
+
+# --- Step 2: Create FastAPI app ---
+app = FastAPI(title="Smart Chatbot with Memory")
+
+# --- Step 3: Create the LLM ---
+llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7)
+
+# --- Step 4: Set up ConversationSummaryBufferMemory ---
+# This memory type does two things:
+#   1. Keeps recent messages as-is (buffer)
+#   2. Summarizes older messages to save tokens
+# max_token_limit = when buffer exceeds this, older messages get summarized
+memory = ConversationSummaryBufferMemory(
+    llm=llm,
+    max_token_limit=300,       # Summarize when buffer exceeds 300 tokens
+    return_messages=True        # Return as message objects
+)
+
+# --- Step 5: Create the conversation chain ---
+conversation = ConversationChain(
+    llm=llm,
+    memory=memory,
+    verbose=True   # Show what's happening behind the scenes
+)
+
+# --- Step 6: Define request/response models ---
+class ChatRequest(BaseModel):
+    """What the user sends to the chatbot"""
+    message: str
+
+class ChatResponse(BaseModel):
+    """What the chatbot sends back"""
+    reply: str
+    memory_summary: str
+
+# --- Step 7: Create the chat endpoint ---
+@app.post("/chat", response_model=ChatResponse)
+def chat(request: ChatRequest):
+    """
+    Send a message and get a reply.
+    The chatbot remembers previous messages using summary memory.
+    """
+    # Get the chatbot's response
+    response = conversation.predict(input=request.message)
+
+    # Get the current memory summary (for debugging/display)
+    current_summary = memory.moving_summary_buffer
+
+    return ChatResponse(
+        reply=response,
+        memory_summary=current_summary if current_summary else "No summary yet (recent messages still in buffer)"
+    )
+
+# --- Step 8: Endpoint to view memory status ---
+@app.get("/memory")
+def get_memory():
+    """Check what the chatbot currently remembers"""
+    return {
+        "summary": memory.moving_summary_buffer,
+        "buffer": [str(msg) for msg in memory.buffer]
+    }
+
+# --- Step 9: Endpoint to clear memory ---
+@app.post("/clear")
+def clear_memory():
+    """Reset the chatbot's memory"""
+    memory.clear()
+    return {"message": "Memory cleared!"}
+
+# --- Step 10: Run the server ---
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+```
+
+---
+
+### B4. Self-Correction Chain with OutputFixingParser and PydanticOutputParser
+
+> Ensure LLM-generated marketing content follows a strict JSON schema.
+
+#### Full Self-Correction Code
+
+```python
+# ============================================================
+# Self-Correction Chain: Marketing Content with JSON Schema
+# ============================================================
+
+# --- Import required libraries ---
+from langchain_openai import ChatOpenAI
+from langchain.output_parsers import PydanticOutputParser
+from langchain.output_parsers import OutputFixingParser
+from langchain.prompts import PromptTemplate
+from pydantic import BaseModel, Field
+from typing import List
+import os
+
+# --- Step 1: Set up API key ---
+os.environ["OPENAI_API_KEY"] = "your-openai-api-key-here"
+
+# --- Step 2: Define the JSON schema using Pydantic ---
+# This is the exact structure we want the LLM to follow
+class MarketingContent(BaseModel):
+    """Schema for marketing content that the LLM must follow"""
+
+    product_name: str = Field(
+        description="Name of the product being marketed"
+    )
+    tagline: str = Field(
+        description="A catchy one-line tagline for the product"
+    )
+    description: str = Field(
+        description="A short marketing description (2-3 sentences)"
+    )
+    target_audience: str = Field(
+        description="Who this product is aimed at"
+    )
+    key_features: List[str] = Field(
+        description="List of 3-5 key features of the product"
+    )
+    call_to_action: str = Field(
+        description="A compelling call-to-action sentence"
+    )
+
+# --- Step 3: Create the Pydantic output parser ---
+# This parser knows the exact schema and validates LLM output against it
+pydantic_parser = PydanticOutputParser(pydantic_object=MarketingContent)
+
+# --- Step 4: Create the LLM ---
+llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7)
+
+# --- Step 5: Create the OutputFixingParser (Self-Correction Layer) ---
+# If the LLM's output doesn't match the schema, this parser
+# automatically sends the error back to the LLM and asks it to fix it
+fixing_parser = OutputFixingParser.from_llm(
+    parser=pydantic_parser,
+    llm=llm
+)
+
+# --- Step 6: Create the prompt template ---
+# We include format instructions so the LLM knows exactly what JSON to produce
+prompt = PromptTemplate(
+    template=(
+        "You are a marketing content creator.\n"
+        "Generate marketing content for the following product:\n\n"
+        "Product: {product}\n\n"
+        "You MUST respond in the following JSON format:\n"
+        "{format_instructions}\n"
+    ),
+    input_variables=["product"],
+    partial_variables={
+        "format_instructions": pydantic_parser.get_format_instructions()
+    }
+)
+
+# --- Step 7: Create and run the chain ---
+def generate_marketing_content(product_name: str) -> MarketingContent:
+    """
+    Generate marketing content for a product.
+    If the LLM gives bad output, it auto-corrects.
+    """
+
+    # Format the prompt with the product name
+    formatted_prompt = prompt.format(product=product_name)
+
+    # Get the LLM's response
+    response = llm.invoke(formatted_prompt)
+
+    # Try to parse the response — if it fails, fixing_parser will auto-correct
+    try:
+        # First, try the normal parser
+        result = pydantic_parser.parse(response.content)
+        print(" Output parsed successfully on first try!")
+    except Exception as e:
+        # If parsing fails, use the fixing parser to auto-correct
+        print(f" First parse failed: {e}")
+        print(" Auto-correcting with OutputFixingParser...")
+        result = fixing_parser.parse(response.content)
+        print(" Output fixed and parsed successfully!")
+
+    return result
+
+
+# --- Step 8: Test the function ---
+product = "SmartFit Pro - an AI-powered fitness tracker watch"
+content = generate_marketing_content(product)
+
+# Display the result as formatted JSON
+print("\n--- GENERATED MARKETING CONTENT ---")
+print(f"Product Name    : {content.product_name}")
+print(f"Tagline         : {content.tagline}")
+print(f"Description     : {content.description}")
+print(f"Target Audience : {content.target_audience}")
+print(f"Key Features    : {content.key_features}")
+print(f"Call to Action  : {content.call_to_action}")
+
+# Also show as JSON
+print("\n--- RAW JSON ---")
+print(content.model_dump_json(indent=2))
+```
+
+#### Sample Output
+
+```json
+{
+  "product_name": "SmartFit Pro",
+  "tagline": "Your AI Coach, On Your Wrist",
+  "description": "SmartFit Pro uses advanced AI to track your fitness goals and provide personalized workout recommendations. Stay motivated with real-time insights.",
+  "target_audience": "Health-conscious adults aged 20-45 who want smart fitness tracking",
+  "key_features": [
+    "AI-powered workout suggestions",
+    "Heart rate and sleep monitoring",
+    "Waterproof design",
+    "7-day battery life",
+    "Syncs with all major fitness apps"
+  ],
+  "call_to_action": "Order your SmartFit Pro today and start your smarter fitness journey!"
+}
+```
+
+---
+
+---
+
+## Section C: Mini Project
+
+### Omni-Channel Enterprise Intelligence Orchestrator
+
+---
+
+
+
+#### 4. Vector Store Builder (`vector_store_builder.py`)
+
+```python
+# ============================================================
+# vector_store_builder.py
+# Builds a FAISS vector store from HR policy PDF documents
+# ============================================================
+
+from langchain_community.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_openai import OpenAIEmbeddings
+from langchain_community.vectorstores import FAISS
+import os
+
+# Set API key
+os.environ["OPENAI_API_KEY"] = "your-openai-api-key-here"
+
+
+def build_vector_store(pdf_path: str, save_path: str = "./faiss_index"):
+    """
+    Load a PDF, split it into chunks, and save as a FAISS vector store.
+
+    Args:
+        pdf_path: Path to the HR policy PDF file
+        save_path: Where to save the FAISS index
+    """
+
+    # Step 1: Load the PDF
+    print(f"Loading PDF: {pdf_path}")
+    loader = PyPDFLoader(pdf_path)
+    documents = loader.load()
+    print(f"Loaded {len(documents)} pages")
+
+    # Step 2: Split into smaller chunks
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=500,
+        chunk_overlap=50
+    )
+    chunks = splitter.split_documents(documents)
+    print(f"Created {len(chunks)} chunks")
+
+    # Step 3: Create embeddings and build FAISS index
+    embeddings = OpenAIEmbeddings()
+    vector_store = FAISS.from_documents(chunks, embeddings)
+
+    # Step 4: Save the index locally
+    vector_store.save_local(save_path)
+    print(f"FAISS index saved to: {save_path}")
+
+    return vector_store
+
+
+# Run this script once to build the index
+if __name__ == "__main__":
+    build_vector_store("data/hr_policies.pdf")
+```
+
+---
+
+#### 5. HR Knowledge Chain (`hr_chain.py`)
+
+```python
+# ============================================================
+# hr_chain.py
+# Handles HR-related queries using the FAISS vector store
+# ============================================================
+
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain_community.vectorstores import FAISS
+from langchain.chains import RetrievalQA
+import os
+
+os.environ["OPENAI_API_KEY"] = "your-openai-api-key-here"
+
+
+def get_hr_chain(index_path: str = "./faiss_index"):
+    """
+    Create a retrieval chain for answering HR questions.
+
+    Args:
+        index_path: Path to the saved FAISS index
+
+    Returns:
+        A RetrievalQA chain ready to answer HR queries
+    """
+
+    # Step 1: Load the saved FAISS index
+    embeddings = OpenAIEmbeddings()
+    vector_store = FAISS.load_local(
+        index_path,
+        embeddings,
+        allow_dangerous_deserialization=True
+    )
+
+    # Step 2: Create a retriever (finds top 3 relevant chunks)
+    retriever = vector_store.as_retriever(
+        search_kwargs={"k": 3}
+    )
+
+    # Step 3: Create the QA chain
+    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+    hr_chain = RetrievalQA.from_chain_type(
+        llm=llm,
+        chain_type="stuff",
+        retriever=retriever,
+        return_source_documents=True
+    )
+
+    return hr_chain
+
+
+def ask_hr_question(query: str) -> str:
+    """Ask an HR-related question and get an answer"""
+    chain = get_hr_chain()
+    result = chain.invoke({"query": query})
+    return result["result"]
+```
+
+---
+
+#### 6. Market Analysis Agent (`market_agent.py`)
+
+```python
+# ============================================================
+# market_agent.py
+# Handles market analysis queries using web search
+# ============================================================
+
+from langchain_openai import ChatOpenAI
+from langchain.agents import initialize_agent, AgentType, Tool
+from langchain_community.tools import DuckDuckGoSearchRun
+from langchain.chains import LLMMathChain
+import os
+
+os.environ["OPENAI_API_KEY"] = "your-openai-api-key-here"
+
+
+def get_market_agent():
+    """
+    Create an agent with web search and calculator tools
+    for market analysis queries.
+
+    Returns:
+        An initialized agent ready for market research
+    """
+
+    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+
+    # Tool 1: Web search for real-time market data
+    search = DuckDuckGoSearchRun()
+    search_tool = Tool(
+        name="Market Search",
+        func=search.run,
+        description="Search the web for market data, business news, "
+                    "competitor analysis, and industry trends."
+    )
+
+    # Tool 2: Calculator for financial calculations
+    math_chain = LLMMathChain.from_llm(llm=llm)
+    math_tool = Tool(
+        name="Calculator",
+        func=math_chain.run,
+        description="Do math calculations like revenue growth, "
+                    "market share percentages, etc."
+    )
+
+    # Create the agent
+    agent = initialize_agent(
+        tools=[search_tool, math_tool],
+        llm=llm,
+        agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+        verbose=True,
+        handle_parsing_errors=True
+    )
+
+    return agent
+
+
+def ask_market_question(query: str) -> str:
+    """Ask a market analysis question and get an answer"""
+    agent = get_market_agent()
+    result = agent.invoke({"input": query})
+    return result["output"]
+```
+
+---
+
+#### 7. Main Orchestrator — Query Router (`orchestrator.py`)
+
+```python
+# ============================================================
+# orchestrator.py
+# Routes queries to the right module (HR or Market Analysis)
+# ============================================================
+
+from langchain_openai import ChatOpenAI
+from langchain.prompts import PromptTemplate
+from hr_chain import ask_hr_question
+from market_agent import ask_market_question
+import time
+import os
+
+os.environ["OPENAI_API_KEY"] = "your-openai-api-key-here"
+
+
+def classify_query(query: str) -> str:
+    """
+    Use the LLM to classify whether a query is about HR or Market.
+
+    Args:
+        query: The user's question
+
+    Returns:
+        "HR" or "MARKET"
+    """
+
+    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+
+    # Simple classification prompt
+    prompt = PromptTemplate(
+        template=(
+            "Classify the following query into one of two categories:\n"
+            "- HR: Questions about company policies, leave, salary, "
+            "  employee benefits, onboarding, workplace rules, etc.\n"
+            "- MARKET: Questions about market trends, competitors, "
+            "  business news, stock prices, industry analysis, etc.\n\n"
+            "Query: {query}\n\n"
+            "Reply with ONLY one word: HR or MARKET"
+        ),
+        input_variables=["query"]
+    )
+
+    # Get the classification
+    response = llm.invoke(prompt.format(query=query))
+    category = response.content.strip().upper()
+
+    # Default to MARKET if unclear
+    if "HR" in category:
+        return "HR"
+    else:
+        return "MARKET"
+
+
+def route_query(query: str) -> dict:
+    """
+    Route the query to the appropriate module and return the answer.
+
+    Args:
+        query: The user's question
+
+    Returns:
+        A dictionary with the category, answer, and time taken
+    """
+
+    # Measure how long it takes
+    start_time = time.time()
+
+    # Step 1: Classify the query
+    category = classify_query(query)
+    print(f"Query classified as: {category}")
+
+    # Step 2: Route to the right module
+    if category == "HR":
+        answer = ask_hr_question(query)
+    else:
+        answer = ask_market_question(query)
+
+    # Step 3: Calculate time taken
+    end_time = time.time()
+    latency = round(end_time - start_time, 2)
+
+    return {
+        "category": category,
+        "answer": answer,
+        "latency_seconds": latency
+    }
+
+
+# Quick test
+if __name__ == "__main__":
+    # Test HR query
+    result1 = route_query("What is the maternity leave policy?")
+    print(f"\nCategory: {result1['category']}")
+    print(f"Answer: {result1['answer']}")
+    print(f"Time: {result1['latency_seconds']}s")
+
+    print("\n" + "="*50 + "\n")
+
+    # Test Market query
+    result2 = route_query("What are the latest trends in AI industry?")
+    print(f"\nCategory: {result2['category']}")
+    print(f"Answer: {result2['answer']}")
+    print(f"Time: {result2['latency_seconds']}s")
+```
+
+---
+
+#### 8. Streamlit Frontend (`app.py`)
+
+```python
+# ============================================================
+# app.py
+# Streamlit Frontend for the Enterprise Intelligence Orchestrator
+# ============================================================
+
+import streamlit as st
+from orchestrator import route_query
+import time
+
+# --- Page Configuration ---
+st.set_page_config(
+    page_title="Enterprise Intelligence Orchestrator",
+    page_icon="",
+    layout="wide"
+)
+
+# --- Title and Description ---
+st.title(" Omni-Channel Enterprise Intelligence Orchestrator")
+st.markdown(
+    "Ask any question! The system automatically routes your query to:\n"
+    "- ** HR Knowledge Base** — for internal policy questions\n"
+    "- ** Market Analysis Agent** — for business and market queries"
+)
+
+st.divider()
+
+# --- Sidebar ---
+st.sidebar.header("About")
+st.sidebar.info(
+    "This system uses LangChain to:\n"
+    "1. Classify your query (HR or Market)\n"
+    "2. Route to the right AI module\n"
+    "3. Return an accurate answer"
+)
+
+# --- Chat History ---
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+# --- User Input ---
+user_query = st.text_input(
+    " Ask your question:",
+    placeholder="e.g., What is our work-from-home policy?"
+)
+
+# --- Process Query ---
+if st.button(" Get Answer", type="primary"):
+    if user_query.strip():
+
+        # Show a spinner while processing
+        with st.spinner("Thinking..."):
+            result = route_query(user_query)
+
+        # Display results
+        col1, col2 = st.columns([3, 1])
+
+        with col1:
+            st.subheader(" Answer")
+            st.write(result["answer"])
+
+        with col2:
+            st.subheader("Info")
+            # Show which module handled the query
+            if result["category"] == "HR":
+                st.success(" Routed to: HR Knowledge Base")
+            else:
+                st.info(" Routed to: Market Analysis Agent")
+
+            st.metric(" Response Time", f"{result['latency_seconds']}s")
+
+        # Save to chat history
+        st.session_state.chat_history.append({
+            "query": user_query,
+            "answer": result["answer"],
+            "category": result["category"],
+            "latency": result["latency_seconds"]
+        })
+    else:
+        st.warning("Please enter a question!")
+
+# --- Display Chat History ---
+if st.session_state.chat_history:
+    st.divider()
+    st.subheader(" Chat History")
+
+    for i, chat in enumerate(reversed(st.session_state.chat_history)):
+        with st.expander(f"Q: {chat['query']}", expanded=(i == 0)):
+            st.write(f"**Answer:** {chat['answer']}")
+            st.caption(
+                f"Category: {chat['category']} | "
+                f"Latency: {chat['latency']}s"
+            )
+```
+
+
+
+---
+
+#### 9. Evaluation Report (`evaluation.py`)
+
+```python
+# ============================================================
+# evaluation.py
+# Measures system latency and accuracy
+# ============================================================
+
+from orchestrator import route_query, classify_query
+import time
+
+# --- Test Queries with Expected Categories ---
+test_cases = [
+    # (query, expected_category)
+    ("What is the company's annual leave policy?", "HR"),
+    ("How many sick days do employees get?", "HR"),
+    ("What is the dress code policy?", "HR"),
+    ("Tell me about the onboarding process for new hires.", "HR"),
+    ("What are the latest trends in the AI market?", "MARKET"),
+    ("Who are the top competitors of Tesla?", "MARKET"),
+    ("What is the current stock price of Apple?", "MARKET"),
+    ("Analyze the growth of cloud computing industry.", "MARKET"),
+]
+
+
+def run_evaluation():
+    """Run all test cases and generate a report"""
+
+    print("=" * 60)
+    print("  SYSTEM EVALUATION REPORT")
+    print("=" * 60)
+
+    correct = 0
+    total = len(test_cases)
+    latencies = []
+
+    for i, (query, expected) in enumerate(test_cases):
+        print(f"\nTest {i+1}/{total}: {query[:50]}...")
+
+        # Measure classification accuracy
+        start = time.time()
+        predicted = classify_query(query)
+        latency = round(time.time() - start, 2)
+        latencies.append(latency)
+
+        is_correct = predicted == expected
+        if is_correct:
+            correct += 1
+
+        status = "✅" if is_correct else "❌"
+        print(f"  Expected: {expected} | Predicted: {predicted} | {status}")
+        print(f"  Latency: {latency}s")
+
+    # --- Summary ---
+    accuracy = round((correct / total) * 100, 1)
+    avg_latency = round(sum(latencies) / len(latencies), 2)
+    max_latency = max(latencies)
+    min_latency = min(latencies)
+
+    print("\n" + "=" * 60)
+    print("  SUMMARY")
+    print("=" * 60)
+    print(f"  Total Test Cases    : {total}")
+    print(f"  Correct Predictions : {correct}")
+    print(f"  Accuracy            : {accuracy}%")
+    print(f"  Avg Latency         : {avg_latency}s")
+    print(f"  Min Latency         : {min_latency}s")
+    print(f"  Max Latency         : {max_latency}s")
+    print("=" * 60)
+
+
+if __name__ == "__main__":
+    run_evaluation()
+```
+
+
+
