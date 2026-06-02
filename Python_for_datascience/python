@@ -1,1 +1,951 @@
+## logger.py
+
+
+```python
+# logger.py
+# Module for logging all transactions to a log file
+
+import datetime
+import os
+
+
+# Name of the log file
+LOG_FILE = "transaction_log.txt"
+
+
+def write_log(message):
+    """
+    Write a log entry to the log file with a timestamp.
+
+    Parameters:
+        message (str): The message to log.
+    """
+    try:
+        # Get the current date and time
+        now = datetime.datetime.now()
+        timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+
+        # Open the log file in append mode so old logs are not deleted
+        with open(LOG_FILE, "a") as file:
+            # Write the timestamp and message on one line
+            file.write(f"[{timestamp}] {message}\n")
+
+    except Exception as e:
+        # If logging fails, print error but don't crash the program
+        print(f"Warning: Could not write to log file. Error: {e}")
+
+
+def view_log():
+    """
+    Read and display the entire log file contents.
+    """
+    try:
+        # Check if the log file exists
+        if not os.path.exists(LOG_FILE):
+            print("\nNo log file found. No transactions recorded yet.")
+            return
+
+        # Open and read the log file
+        with open(LOG_FILE, "r") as file:
+            contents = file.read()
+
+        # Check if the file is empty
+        if contents.strip() == "":
+            print("\nLog file is empty. No transactions recorded yet.")
+        else:
+            print("\n" + "=" * 60)
+            print("          TRANSACTION LOG")
+            print("=" * 60)
+            print(contents)
+            print("=" * 60)
+
+    except Exception as e:
+        print(f"Error reading log file: {e}")
+```
+
+## storage.py
+
+
+```python
+# storage.py
+# Module for file handling — save and load stock and transactions
+
+import json
+import os
+
+
+# File names for storing data
+STOCK_FILE = "fruit_stock.json"
+TRANSACTION_FILE = "transactions.json"
+
+
+# =============================================
+# STOCK FILE OPERATIONS
+# =============================================
+
+def load_stock():
+    """
+    Load fruit stock data from the JSON file.
+
+    Returns:
+        dict: A dictionary with fruit names as keys and
+              {'price': float, 'quantity': int} as values.
+              Returns empty dict if file doesn't exist.
+    """
+    try:
+        # Check if the stock file exists
+        if os.path.exists(STOCK_FILE):
+            # Open and read the JSON file
+            with open(STOCK_FILE, "r") as file:
+                stock = json.load(file)
+            return stock
+        else:
+            # If file does not exist, return empty dictionary
+            return {}
+
+    except Exception as e:
+        print(f"Error loading stock data: {e}")
+        return {}
+
+
+def save_stock(stock):
+    """
+    Save fruit stock data to the JSON file.
+
+    Parameters:
+        stock (dict): Dictionary containing fruit stock data.
+    """
+    try:
+        # Open the file in write mode and save the dictionary as JSON
+        with open(STOCK_FILE, "w") as file:
+            json.dump(stock, file, indent=4)
+
+    except Exception as e:
+        print(f"Error saving stock data: {e}")
+
+
+# =============================================
+# TRANSACTION FILE OPERATIONS
+# =============================================
+
+def load_transactions():
+    """
+    Load all transaction records from the JSON file.
+
+    Returns:
+        list: A list of transaction dictionaries.
+              Returns empty list if file doesn't exist.
+    """
+    try:
+        # Check if the transaction file exists
+        if os.path.exists(TRANSACTION_FILE):
+            # Open and read the JSON file
+            with open(TRANSACTION_FILE, "r") as file:
+                transactions = json.load(file)
+            return transactions
+        else:
+            # If file does not exist, return empty list
+            return []
+
+    except Exception as e:
+        print(f"Error loading transactions: {e}")
+        return []
+
+
+def save_transactions(transactions):
+    """
+    Save all transaction records to the JSON file.
+
+    Parameters:
+        transactions (list): List of transaction dictionaries.
+    """
+    try:
+        # Open the file in write mode and save as JSON
+        with open(TRANSACTION_FILE, "w") as file:
+            json.dump(transactions, file, indent=4)
+
+    except Exception as e:
+        print(f"Error saving transactions: {e}")
+
+
+def add_transaction(transaction):
+    """
+    Add a single transaction record to the file.
+
+    Parameters:
+        transaction (dict): A dictionary with transaction details.
+    """
+    # Load existing transactions
+    transactions = load_transactions()
+
+    # Add the new transaction to the list
+    transactions.append(transaction)
+
+    # Save the updated list back to the file
+    save_transactions(transactions)
+```
+
+## fruit_manager.py
+
+
+```python
+# fruit_manager.py
+# Module for Fruit Manager operations — add, view, update stock
+
+import storage
+import logger
+
+
+def display_manager_menu():
+    """
+    Display the Fruit Manager menu options.
+    """
+    print("\n" + "=" * 50)
+    print("       FRUIT MANAGER MENU")
+    print("=" * 50)
+    print("1. Add Fruit Stock")
+    print("2. View Fruit Stock")
+    print("3. Update Fruit Stock")
+    print("4. View Transaction Log")
+    print("5. Back to Main Menu")
+    print("=" * 50)
+
+
+def get_valid_string(prompt):
+    """
+    Get a valid non-empty string input from the user.
+    Uses looping to keep asking until valid input is given.
+
+    Parameters:
+        prompt (str): The message to show the user.
+
+    Returns:
+        str: A valid non-empty string (stripped of extra spaces).
+    """
+    while True:
+        value = input(prompt).strip()
+        # Check if the input is not empty
+        if len(value) > 0:
+            return value
+        else:
+            print("Invalid input! Please enter a valid value.")
+
+
+def get_valid_float(prompt):
+    """
+    Get a valid positive float number from the user.
+    Uses looping and validation to prevent errors.
+
+    Parameters:
+        prompt (str): The message to show the user.
+
+    Returns:
+        float: A valid positive number.
+    """
+    while True:
+        try:
+            value = float(input(prompt).strip())
+            # Price must be greater than 0
+            if value > 0:
+                return value
+            else:
+                print("Invalid input! Value must be greater than 0.")
+        except ValueError:
+            print("Invalid input! Please enter a valid number.")
+
+
+def get_valid_int(prompt):
+    """
+    Get a valid positive integer from the user.
+    Uses looping and validation to prevent errors.
+
+    Parameters:
+        prompt (str): The message to show the user.
+
+    Returns:
+        int: A valid positive integer.
+    """
+    while True:
+        try:
+            value = int(input(prompt).strip())
+            # Quantity must be greater than 0
+            if value > 0:
+                return value
+            else:
+                print("Invalid input! Value must be greater than 0.")
+        except ValueError:
+            print("Invalid input! Please enter a valid whole number.")
+
+
+def add_fruit():
+    """
+    Add a new fruit to the stock.
+    If the fruit already exists, show a message.
+    """
+    try:
+        print("\n--- Add Fruit Stock ---")
+
+        # Load the current stock from file
+        stock = storage.load_stock()
+
+        # Get fruit name from user (convert to title case for consistency)
+        fruit_name = get_valid_string("Enter fruit name: ").title()
+
+        # Check if fruit already exists in stock
+        if fruit_name in stock:
+            print(f"\n'{fruit_name}' already exists in stock!")
+            print("Use 'Update Fruit Stock' option to change quantity or price.")
+            return
+
+        # Get price and quantity from user
+        price = get_valid_float(f"Enter price of {fruit_name} per kg (in Rs): ")
+        quantity = get_valid_int(f"Enter quantity of {fruit_name} (in kg): ")
+
+        # Add the fruit to the stock dictionary
+        stock[fruit_name] = {
+            "price": price,
+            "quantity": quantity
+        }
+
+        # Save the updated stock to the file
+        storage.save_stock(stock)
+
+        # Log this action
+        logger.write_log(
+            f"MANAGER - Added fruit: {fruit_name}, "
+            f"Price: Rs.{price}, Quantity: {quantity} kg"
+        )
+
+        # Show confirmation message
+        print(f"\nSuccess! '{fruit_name}' has been added to stock.")
+        print(f"  Price: Rs.{price} per kg")
+        print(f"  Quantity: {quantity} kg")
+
+    except Exception as e:
+        # Prevent unexpected exceptions — return to menu
+        print(f"\nAn error occurred: {e}")
+        print("Returning to Manager Menu...")
+
+
+def view_stock():
+    """
+    Display all fruits currently in stock in a nice table format.
+    """
+    try:
+        print("\n--- View Fruit Stock ---")
+
+        # Load the current stock from file
+        stock = storage.load_stock()
+
+        # Check if stock is empty
+        if len(stock) == 0:
+            print("\nNo fruits in stock! Please add some fruits first.")
+            return
+
+        # Display the stock in a formatted table
+        print("\n" + "-" * 55)
+        print(f"{'No.':<5} {'Fruit Name':<20} {'Price (Rs/kg)':<15} {'Qty (kg)':<10}")
+        print("-" * 55)
+
+        # Loop through each fruit in the stock dictionary
+        count = 1
+        for fruit_name, details in stock.items():
+            price = details["price"]
+            quantity = details["quantity"]
+            print(f"{count:<5} {fruit_name:<20} {price:<15.2f} {quantity:<10}")
+            count += 1
+
+        print("-" * 55)
+        print(f"Total types of fruits in stock: {len(stock)}")
+
+        # Log this action
+        logger.write_log("MANAGER - Viewed fruit stock")
+
+    except Exception as e:
+        print(f"\nAn error occurred: {e}")
+        print("Returning to Manager Menu...")
+
+
+def update_stock():
+    """
+    Update the price or quantity of an existing fruit in stock.
+    """
+    try:
+        print("\n--- Update Fruit Stock ---")
+
+        # Load the current stock from file
+        stock = storage.load_stock()
+
+        # Check if stock is empty
+        if len(stock) == 0:
+            print("\nNo fruits in stock to update! Add some fruits first.")
+            return
+
+        # Show available fruits
+        print("\nAvailable fruits:")
+        count = 1
+        fruit_list = list(stock.keys())
+        for fruit in fruit_list:
+            print(f"  {count}. {fruit}")
+            count += 1
+
+        # Get fruit name from user
+        fruit_name = get_valid_string("\nEnter fruit name to update: ").title()
+
+        # Check if fruit exists
+        if fruit_name not in stock:
+            print(f"\n'{fruit_name}' not found in stock!")
+            print("Please check the fruit name and try again.")
+            return
+
+        # Show current details
+        current_price = stock[fruit_name]["price"]
+        current_qty = stock[fruit_name]["quantity"]
+        print(f"\nCurrent details of '{fruit_name}':")
+        print(f"  Price: Rs.{current_price} per kg")
+        print(f"  Quantity: {current_qty} kg")
+
+        # Ask what to update
+        print("\nWhat do you want to update?")
+        print("1. Price")
+        print("2. Quantity")
+        print("3. Both Price and Quantity")
+
+        choice = get_valid_string("Enter your choice (1/2/3): ")
+
+        # Update based on user's choice using control statements
+        if choice == "1":
+            # Update price only
+            new_price = get_valid_float("Enter new price per kg (in Rs): ")
+            stock[fruit_name]["price"] = new_price
+            logger.write_log(
+                f"MANAGER - Updated price of {fruit_name}: "
+                f"Rs.{current_price} -> Rs.{new_price}"
+            )
+            print(f"\nPrice of '{fruit_name}' updated to Rs.{new_price}")
+
+        elif choice == "2":
+            # Update quantity only
+            new_qty = get_valid_int("Enter new quantity (in kg): ")
+            stock[fruit_name]["quantity"] = new_qty
+            logger.write_log(
+                f"MANAGER - Updated quantity of {fruit_name}: "
+                f"{current_qty} kg -> {new_qty} kg"
+            )
+            print(f"\nQuantity of '{fruit_name}' updated to {new_qty} kg")
+
+        elif choice == "3":
+            # Update both price and quantity
+            new_price = get_valid_float("Enter new price per kg (in Rs): ")
+            new_qty = get_valid_int("Enter new quantity (in kg): ")
+            stock[fruit_name]["price"] = new_price
+            stock[fruit_name]["quantity"] = new_qty
+            logger.write_log(
+                f"MANAGER - Updated {fruit_name}: "
+                f"Price Rs.{current_price}->Rs.{new_price}, "
+                f"Qty {current_qty}->{new_qty} kg"
+            )
+            print(f"\n'{fruit_name}' updated successfully!")
+            print(f"  New Price: Rs.{new_price} per kg")
+            print(f"  New Quantity: {new_qty} kg")
+
+        else:
+            print("\nInvalid choice! Returning to Manager Menu.")
+            return
+
+        # Save the updated stock to the file
+        storage.save_stock(stock)
+        print("\nStock updated and saved successfully!")
+
+    except Exception as e:
+        print(f"\nAn error occurred: {e}")
+        print("Returning to Manager Menu...")
+
+
+def manager_menu():
+    """
+    Main loop for the Fruit Manager menu.
+    Keeps running until the manager chooses to go back.
+    """
+    while True:
+        try:
+            # Display the menu after each operation
+            display_manager_menu()
+
+            # Get user's choice
+            choice = input("Enter your choice (1-5): ").strip()
+
+            # Use control statements to handle the choice
+            if choice == "1":
+                add_fruit()
+            elif choice == "2":
+                view_stock()
+            elif choice == "3":
+                update_stock()
+            elif choice == "4":
+                logger.view_log()
+            elif choice == "5":
+                print("\nReturning to Main Menu...")
+                break
+            else:
+                print("\nInvalid choice! Please enter a number between 1 and 5.")
+
+        except Exception as e:
+            # Prevent unexpected exceptions — return to menu
+            print(f"\nAn unexpected error occurred: {e}")
+            print("Returning to Manager Menu...")
+```
+
+## customer.py
+
+
+```python
+# customer.py
+# Module for Customer operations — view stock, buy fruits, view receipt
+
+import datetime
+import storage
+import logger
+
+
+def display_customer_menu():
+    """
+    Display the Customer menu options.
+    """
+    print("\n" + "=" * 50)
+    print("       CUSTOMER MENU")
+    print("=" * 50)
+    print("1. View Available Fruits")
+    print("2. Buy Fruits")
+    print("3. View Purchase Receipt")
+    print("4. Back to Main Menu")
+    print("=" * 50)
+
+
+def get_valid_string(prompt):
+    """
+    Get a valid non-empty string input from the user.
+
+    Parameters:
+        prompt (str): The message to show the user.
+
+    Returns:
+        str: A valid non-empty string.
+    """
+    while True:
+        value = input(prompt).strip()
+        if len(value) > 0:
+            return value
+        else:
+            print("Invalid input! Please enter a valid value.")
+
+
+def get_valid_int(prompt):
+    """
+    Get a valid positive integer from the user.
+
+    Parameters:
+        prompt (str): The message to show the user.
+
+    Returns:
+        int: A valid positive integer.
+    """
+    while True:
+        try:
+            value = int(input(prompt).strip())
+            if value > 0:
+                return value
+            else:
+                print("Invalid input! Value must be greater than 0.")
+        except ValueError:
+            print("Invalid input! Please enter a valid whole number.")
+
+
+def view_available_fruits():
+    """
+    Display all fruits that are available for purchase.
+    Only shows fruits with quantity greater than 0.
+    """
+    try:
+        print("\n--- Available Fruits ---")
+
+        # Load current stock from file
+        stock = storage.load_stock()
+
+        # Check if stock is empty
+        if len(stock) == 0:
+            print("\nNo fruits available at the moment. Please check back later!")
+            return
+
+        # Display the available fruits in a table
+        print("\n" + "-" * 55)
+        print(f"{'No.':<5} {'Fruit Name':<20} {'Price (Rs/kg)':<15} {'Available (kg)':<10}")
+        print("-" * 55)
+
+        count = 1
+        available_count = 0
+
+        # Loop through each fruit in the stock
+        for fruit_name, details in stock.items():
+            price = details["price"]
+            quantity = details["quantity"]
+
+            # Only display fruits that are in stock (quantity > 0)
+            if quantity > 0:
+                print(f"{count:<5} {fruit_name:<20} {price:<15.2f} {quantity:<10}")
+                available_count += 1
+
+            count += 1
+
+        print("-" * 55)
+
+        # Check if any fruits are available
+        if available_count == 0:
+            print("All fruits are out of stock! Please check back later.")
+
+        # Log this action
+        logger.write_log("CUSTOMER - Viewed available fruits")
+
+    except Exception as e:
+        print(f"\nAn error occurred: {e}")
+        print("Returning to Customer Menu...")
+
+
+def buy_fruits():
+    """
+    Allow the customer to buy one or more fruits.
+    Creates a transaction record and updates the stock.
+    """
+    try:
+        print("\n--- Buy Fruits ---")
+
+        # Load current stock from file
+        stock = storage.load_stock()
+
+        # Check if stock is empty
+        if len(stock) == 0:
+            print("\nNo fruits available to buy. Please check back later!")
+            return
+
+        # Get customer name
+        customer_name = get_valid_string("Enter your name: ").title()
+
+        # Dictionary to store items in this purchase (shopping cart)
+        cart = {}
+        total_bill = 0.0
+
+        # Loop to allow buying multiple fruits
+        while True:
+            # Show available fruits
+            print("\nAvailable Fruits:")
+            available_fruits = []
+            count = 1
+
+            for fruit_name, details in stock.items():
+                if details["quantity"] > 0:
+                    print(f"  {count}. {fruit_name} - Rs.{details['price']}/kg "
+                          f"(Available: {details['quantity']} kg)")
+                    available_fruits.append(fruit_name)
+                    count += 1
+
+            # Check if any fruits are available
+            if len(available_fruits) == 0:
+                print("\nNo fruits available to buy!")
+                break
+
+            # Get fruit name from customer
+            fruit_name = get_valid_string("\nEnter fruit name to buy: ").title()
+
+            # Validate that the fruit exists and is available
+            if fruit_name not in stock:
+                print(f"\n'{fruit_name}' is not available in our store.")
+                print("Please check the name and try again.")
+                continue
+
+            if stock[fruit_name]["quantity"] <= 0:
+                print(f"\nSorry! '{fruit_name}' is out of stock.")
+                continue
+
+            # Get quantity to buy
+            max_qty = stock[fruit_name]["quantity"]
+            print(f"Available quantity of {fruit_name}: {max_qty} kg")
+
+            quantity = get_valid_int(f"Enter quantity to buy (in kg): ")
+
+            # Check if enough stock is available
+            if quantity > max_qty:
+                print(f"\nSorry! Only {max_qty} kg of {fruit_name} is available.")
+                print("Please enter a smaller quantity.")
+                continue
+
+            # Calculate the cost for this fruit
+            price = stock[fruit_name]["price"]
+            cost = price * quantity
+
+            # Add to cart
+            if fruit_name in cart:
+                # If same fruit bought again, add to existing quantity
+                cart[fruit_name]["quantity"] += quantity
+                cart[fruit_name]["cost"] += cost
+            else:
+                cart[fruit_name] = {
+                    "price": price,
+                    "quantity": quantity,
+                    "cost": cost
+                }
+
+            # Update the stock (reduce quantity)
+            stock[fruit_name]["quantity"] -= quantity
+
+            # Add to total bill
+            total_bill += cost
+
+            # Show confirmation
+            print(f"\nAdded {quantity} kg of {fruit_name} to cart. Cost: Rs.{cost:.2f}")
+
+            # Ask if customer wants to buy more
+            more = input("\nDo you want to buy more fruits? (yes/no): ").strip().lower()
+            if more != "yes" and more != "y":
+                break
+
+        # Check if the cart is empty
+        if len(cart) == 0:
+            print("\nNo items purchased. Returning to Customer Menu.")
+            return
+
+        # Save the updated stock
+        storage.save_stock(stock)
+
+        # Create the transaction record (stored in dictionary)
+        now = datetime.datetime.now()
+        transaction = {
+            "transaction_id": now.strftime("%Y%m%d%H%M%S"),
+            "date": now.strftime("%Y-%m-%d"),
+            "time": now.strftime("%H:%M:%S"),
+            "customer_name": customer_name,
+            "items": cart,
+            "total_bill": total_bill
+        }
+
+        # Save transaction to file
+        storage.add_transaction(transaction)
+
+        # Log this transaction
+        logger.write_log(
+            f"CUSTOMER - {customer_name} purchased fruits. "
+            f"Total Bill: Rs.{total_bill:.2f}"
+        )
+
+        # Display the receipt
+        print("\n" + "=" * 55)
+        print("            PURCHASE RECEIPT")
+        print("=" * 55)
+        print(f"  Transaction ID : {transaction['transaction_id']}")
+        print(f"  Date           : {transaction['date']}")
+        print(f"  Time           : {transaction['time']}")
+        print(f"  Customer Name  : {customer_name}")
+        print("-" * 55)
+        print(f"  {'Fruit':<15} {'Price/kg':<12} {'Qty (kg)':<10} {'Cost (Rs)':<10}")
+        print("-" * 55)
+
+        for fruit, info in cart.items():
+            print(f"  {fruit:<15} {info['price']:<12.2f} {info['quantity']:<10} "
+                  f"{info['cost']:<10.2f}")
+
+        print("-" * 55)
+        print(f"  {'TOTAL BILL':>37}  Rs.{total_bill:.2f}")
+        print("=" * 55)
+        print("\nThank you for your purchase!")
+
+    except Exception as e:
+        print(f"\nAn error occurred: {e}")
+        print("Returning to Customer Menu...")
+
+
+def view_receipt():
+    """
+    View all past transaction receipts.
+    Customer can search by name or view all.
+    """
+    try:
+        print("\n--- View Purchase Receipts ---")
+
+        # Load all transactions from file
+        transactions = storage.load_transactions()
+
+        # Check if there are any transactions
+        if len(transactions) == 0:
+            print("\nNo purchase records found.")
+            return
+
+        # Ask if they want to search by name or view all
+        print("\n1. View all receipts")
+        print("2. Search by customer name")
+        search_choice = get_valid_string("Enter your choice (1/2): ")
+
+        if search_choice == "2":
+            # Search by customer name
+            search_name = get_valid_string("Enter customer name: ").title()
+            # Filter transactions using list comprehension
+            filtered = [
+                t for t in transactions
+                if t["customer_name"] == search_name
+            ]
+
+            if len(filtered) == 0:
+                print(f"\nNo receipts found for '{search_name}'.")
+                return
+
+            transactions_to_show = filtered
+        else:
+            transactions_to_show = transactions
+
+        # Display each transaction
+        for t in transactions_to_show:
+            print("\n" + "=" * 55)
+            print(f"  Transaction ID : {t['transaction_id']}")
+            print(f"  Date           : {t['date']}")
+            print(f"  Time           : {t['time']}")
+            print(f"  Customer       : {t['customer_name']}")
+            print("-" * 55)
+            print(f"  {'Fruit':<15} {'Price/kg':<12} {'Qty (kg)':<10} {'Cost (Rs)':<10}")
+            print("-" * 55)
+
+            for fruit, info in t["items"].items():
+                print(f"  {fruit:<15} {info['price']:<12.2f} "
+                      f"{info['quantity']:<10} {info['cost']:<10.2f}")
+
+            print("-" * 55)
+            print(f"  {'TOTAL BILL':>37}  Rs.{t['total_bill']:.2f}")
+            print("=" * 55)
+
+        # Log this action
+        logger.write_log("CUSTOMER - Viewed purchase receipts")
+
+    except Exception as e:
+        print(f"\nAn error occurred: {e}")
+        print("Returning to Customer Menu...")
+
+
+def customer_menu():
+    """
+    Main loop for the Customer menu.
+    Keeps running until the customer chooses to go back.
+    """
+    while True:
+        try:
+            # Display the menu after each operation
+            display_customer_menu()
+
+            # Get user's choice
+            choice = input("Enter your choice (1-4): ").strip()
+
+            # Use control statements to handle the choice
+            if choice == "1":
+                view_available_fruits()
+            elif choice == "2":
+                buy_fruits()
+            elif choice == "3":
+                view_receipt()
+            elif choice == "4":
+                print("\nReturning to Main Menu...")
+                break
+            else:
+                print("\nInvalid choice! Please enter a number between 1 and 4.")
+
+        except Exception as e:
+            # Prevent unexpected exceptions — return to menu
+            print(f"\nAn unexpected error occurred: {e}")
+            print("Returning to Customer Menu...")
+```
+
+## main.py
+
+
+```python
+# main.py
+# Main entry point — Fruit Store Console Application
+# This file acts as the module controller
+
+import fruit_manager
+import customer
+import logger
+
+
+def display_main_menu():
+    """
+    Display the main menu for role selection.
+    """
+    print("\n" + "=" * 50)
+    print("    WELCOME TO THE FRUIT STORE APPLICATION")
+    print("=" * 50)
+    print("1. Fruit Manager (Admin)")
+    print("2. Customer")
+    print("3. Exit")
+    print("=" * 50)
+
+
+def main():
+    """
+    Main function that runs the Fruit Store application.
+    Uses a while loop so the program runs until the user exits.
+    """
+    # Log that the application has started
+    logger.write_log("APPLICATION STARTED")
+
+    print("\n*****  Fruit Store Console Application  *****")
+    print("Developed following PEP 8 guidelines and coding standards.\n")
+
+    # Main loop — program does not terminate until user exits
+    while True:
+        try:
+            # Display the main menu after each operation
+            display_main_menu()
+
+            # Get the user's choice
+            choice = input("Enter your choice (1-3): ").strip()
+
+            # Use control statements to handle menu selection
+            if choice == "1":
+                # Open the Fruit Manager menu
+                print("\n--- Logging in as Fruit Manager ---")
+                logger.write_log("User logged in as FRUIT MANAGER")
+                fruit_manager.manager_menu()
+
+            elif choice == "2":
+                # Open the Customer menu
+                print("\n--- Logging in as Customer ---")
+                logger.write_log("User logged in as CUSTOMER")
+                customer.customer_menu()
+
+            elif choice == "3":
+                # Exit the application
+                print("\n" + "=" * 50)
+                print("  Thank you for using the Fruit Store Application!")
+                print("  Goodbye!")
+                print("=" * 50)
+                logger.write_log("APPLICATION EXITED")
+                break
+
+            else:
+                # Invalid input — display error and show menu again
+                print("\nInvalid choice! Please enter 1, 2, or 3.")
+
+        except KeyboardInterrupt:
+            # Handle Ctrl+C gracefully
+            print("\n\nApplication interrupted by user.")
+            logger.write_log("APPLICATION INTERRUPTED BY USER")
+            break
+
+        except Exception as e:
+            # Catch any unexpected errors and continue
+            print(f"\nAn unexpected error occurred: {e}")
+            print("Returning to Main Menu...")
+            logger.write_log(f"ERROR: {e}")
+
+
+# Entry point of the program
+if __name__ == "__main__":
+    main()
+```
 
