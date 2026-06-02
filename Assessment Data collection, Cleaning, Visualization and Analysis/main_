@@ -1,1 +1,140 @@
+### Q.1 Convert a 1D array to a 2D array with 2 rows
+```python
+import numpy as np
+array_1d = np.array([1, 2, 3, 4, 5, 6])
+array_2d = array_1d.reshape(2, -1)
+print(array_2d)
+```
+
+### Q.2 Get the common items between a and b
+```python
+import numpy as np
+a = np.array([1, 2, 3, 2, 3, 4, 3, 4, 5, 6])
+b = np.array([7, 2, 10, 2, 7, 4, 9, 4, 9, 8])
+print(np.intersect1d(a, b))
+```
+
+### Q.3 Get all items between 5 and 10 from a.
+```python
+import numpy as np
+a = np.array([2, 6, 1, 9, 10, 3, 27])
+print(a[(a >= 5) & (a <= 10)])
+```
+
+### Q.4 Limit the number of items printed in python NumPy array a to a maximum of 6 elements.
+```python
+import numpy as np
+a = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])
+np.set_printoptions(threshold=6)
+print(a)
+```
+
+### 1. Compute the minimum, 25th percentile, median, 75th, and maximum of ser.
+```python
+import pandas as pd
+import numpy as np
+ser = pd.Series(np.random.normal(10, 5, 25))
+print(np.percentile(ser, [0, 25, 50, 75, 100]))
+```
+
+### 2. Creating A Pandas Data Frame and Using Sample Data Sets
+```python
+import pandas as pd
+data = {'Name': ['Alice', 'Bob'], 'Age': [25, 30]}
+df = pd.DataFrame(data)
+print(df)
+```
+
+### 3. Using NumPy, create a Pandas Data Frame with five rows and three columns.
+```python
+import pandas as pd
+import numpy as np
+df = pd.DataFrame(np.random.rand(5, 3))
+print(df)
+```
+
+### 4. For a Pandas Data Frame created from a NumPy array, what is the default behavior for the labels for the columns? For the rows?
+**Answer:** The default behavior for both column labels and row labels is an integer index starting from 0 (e.g., 0, 1, 2, ...).
+
+### 5. take csv file contains at least 10,000 rows and 12 columns which numerical and text values according to that continue following steps.
+```python
+import pandas as pd
+# df = pd.read_csv('large_dataset.csv')
+```
+
+### 6. Write the code to show the number of rows and columns in data frame.
+```python
+print(df.shape)
+```
+
+### 7. How might you show the first few rows of data frame?
+```python
+print(df.head())
+```
+
+### 8. If you select a single column from the diamonds Data Frame, what will be the type of the return value?
+**Answer:** A Pandas Series (`pandas.core.series.Series`).
+
+### 9. Create a line plot using the x and y values provided below. Label the y-axis as "Y" and label the x-axis as "X".
+```python
+import matplotlib.pyplot as plt
+x = [3, 4, 5, 6]
+y = [1.5, 2, 2.5, 3]
+plt.plot(x, y)
+plt.xlabel("X")
+plt.ylabel("Y")
+plt.show()
+```
+
+### 10. Create an array of numbers between 0 and 6 with increments of 0.3 and name its "x". Then on the same plot, plot x, x², x³, and x⁴. For consistency, use the following style lines respectively, "ro", "bs", "g", and ":". Lastly, make sure that the x-axis covers 0 to 6, while the y-axis spans from 0 to 125. Do not worry if you are not familiar with the style lines — you will recognize them as soon as you see the plot.
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+x = np.arange(0, 6.1, 0.3)
+plt.plot(x, x, 'ro', label='x')
+plt.plot(x, x**2, 'bs', label='x²')
+plt.plot(x, x**3, 'g', label='x³')
+plt.plot(x, x**4, ':', label='x⁴')
+plt.xlim(0, 6)
+plt.ylim(0, 125)
+plt.legend()
+plt.show()
+```
+
+### 11. Heights and initials of a group of individuals are provided below. Create a bar plot titled "Height Comparison" to compare the heights among this group.
+```python
+import matplotlib.pyplot as plt
+height = [179, 155, 191, 152, 188, 177]
+names = ['QA', 'WB', 'EC', 'RD', 'TE', 'YF']
+plt.bar(names, height)
+plt.title("Height Comparison")
+plt.show()
+```
+
+### 12. Plot a histogram of x, where x consists of 100,000 randomly-selected points with a normal distribution (hint: you can use numpy.random.randn() to generate the random points). The histogram should have 10 bins. Look at how the histogram changes when we try 20 and 50 bins.
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+x = np.random.randn(100000)
+
+plt.hist(x, bins=10)
+plt.show()
+
+plt.hist(x, bins=20)
+plt.show()
+
+plt.hist(x, bins=50)
+plt.show()
+```
+
+### 13. What are the features of TensorFlow?
+**Answer:** Features include multi-dimensional arrays (tensors), auto-differentiation, GPU/TPU support, Keras integration, scalability, and a broad ecosystem (e.g., TensorBoard, TensorFlow Lite).
+
+### 14. List a few limitations of TensorFlow.
+**Answer:** Limitations include a steep learning curve, complex debugging (due to computation graphs), frequent version updates causing compatibility issues, and high memory consumption.
+
+### 15. What do you know about supervised and unsupervised machine learning?
+**Answer:**
+- **Supervised Machine Learning:** The model learns from labeled data to predict outcomes for unseen data (e.g., Classification, Regression).
+- **Unsupervised Machine Learning:** The model discovers hidden patterns or groupings in unlabeled data (e.g., Clustering, Dimensionality Reduction).
 
