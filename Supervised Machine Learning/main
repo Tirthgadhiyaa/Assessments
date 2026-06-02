@@ -1,0 +1,222 @@
+### 1. Load and understand dataset (columns, types, target variable).
+
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Load the dataset
+df = pd.read_csv('pharma_data.csv')
+
+# View the first 5 rows
+print(df.head())
+
+# Check column names, non-null counts, and data types
+print("\nDataset Info:")
+df.info()
+
+# Basic statistics for numerical columns
+print("\nSummary Statistics:")
+print(df.describe())
+
+# The target variable we want to predict
+target = 'Shelf_Life_Months'
+print(f"\nTarget Variable: {target}")
+```
+
+### 2. Handle missing values and outliers.
+
+```python
+# 1. Handle Missing Values
+# Fill missing numerical values with the median
+for col in df.select_dtypes(include=np.number).columns:
+    df[col] = df[col].fillna(df[col].median())
+
+# Fill missing categorical values with the mode (most frequent value)
+for col in df.select_dtypes(include='object').columns:
+    df[col] = df[col].fillna(df[col].mode()[0])
+
+# 2. Handle Outliers using IQR (Interquartile Range) method
+# For example, handling outliers in a 'Dosage_mg' column
+def remove_outliers(df, column):
+    Q1 = df[column].quantile(0.25)
+    Q3 = df[column].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+    
+    # Keep only data within the valid bounds
+    return df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
+
+df = remove_outliers(df, 'Dosage_mg')
+print("Missing values and outliers handled.")
+```
+
+### 3. Perform EDA (visualize distributions, correlations).
+
+```python
+# Visualize the distribution of the target variable
+plt.figure(figsize=(8, 5))
+sns.histplot(df['Shelf_Life_Months'], bins=20, kde=True)
+plt.title('Distribution of Drug Shelf Life (Months)')
+plt.xlabel('Shelf Life (Months)')
+plt.ylabel('Frequency')
+plt.show()
+
+# Visualize correlations between numerical features
+plt.figure(figsize=(10, 8))
+correlation_matrix = df.select_dtypes(include=np.number).corr()
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
+plt.title('Correlation Heatmap')
+plt.show()
+```
+
+### 4. Feature engineering (e.g., dosage to volume ratio, temperature bands).
+
+```python
+# Example 1: Create a Dosage to Volume ratio
+# Assuming we have 'Dosage_mg' and 'Volume_ml' columns
+df['Dosage_to_Volume_Ratio'] = df['Dosage_mg'] / df['Volume_ml']
+
+# Example 2: Create Temperature Bands from a continuous temperature column
+# Assuming we have a 'Storage_Temp_C' column
+def get_temp_band(temp):
+    if temp < 5:
+        return 'Cold'
+    elif temp <= 25:
+        return 'Room Temp'
+    else:
+        return 'Warm'
+
+df['Temp_Band'] = df['Storage_Temp_C'].apply(get_temp_band)
+
+print(df[['Dosage_mg', 'Volume_ml', 'Dosage_to_Volume_Ratio', 'Storage_Temp_C', 'Temp_Band']].head())
+```
+
+### 5. Encode categorical variables.
+
+```python
+# Convert categorical variables into dummy/indicator variables (0s and 1s)
+# drop_first=True prevents the dummy variable trap
+df_encoded = pd.get_dummies(df, drop_first=True)
+
+# Separate features (X) and target (y)
+X = df_encoded.drop('Shelf_Life_Months', axis=1)
+y = df_encoded['Shelf_Life_Months']
+
+print("Shape of X after encoding:", X.shape)
+```
+
+### 6. Build a Linear Regression model.
+
+```python
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
+
+# Split data: 80% for training, 20% for testing
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Create and train the Linear Regression model
+lr_model = LinearRegression()
+lr_model.fit(X_train, y_train)
+
+# Make predictions and evaluate
+lr_preds = lr_model.predict(X_test)
+lr_rmse = np.sqrt(mean_squared_error(y_test, lr_preds))
+
+print(f"Linear Regression RMSE: {lr_rmse:.2f}")
+```
+
+### 7. Build and evaluate Random Forest Regressor.
+
+```python
+from sklearn.ensemble import RandomForestRegressor
+
+# Create and train the Random Forest model
+rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+rf_model.fit(X_train, y_train)
+
+# Make predictions and evaluate
+rf_preds = rf_model.predict(X_test)
+rf_rmse = np.sqrt(mean_squared_error(y_test, rf_preds))
+
+print(f"Random Forest RMSE: {rf_rmse:.2f}")
+```
+
+### 8. Compare with Gradient Boosting model.
+
+```python
+from sklearn.ensemble import GradientBoostingRegressor
+
+# Create and train the Gradient Boosting model
+gb_model = GradientBoostingRegressor(n_estimators=100, random_state=42)
+gb_model.fit(X_train, y_train)
+
+# Make predictions and evaluate
+gb_preds = gb_model.predict(X_test)
+gb_rmse = np.sqrt(mean_squared_error(y_test, gb_preds))
+
+print(f"Gradient Boosting RMSE: {gb_rmse:.2f}")
+
+# Compare all three models
+print("\n--- Model Comparison ---")
+print(f"Linear Regression RMSE: {lr_rmse:.2f}")
+print(f"Random Forest RMSE:     {rf_rmse:.2f}")
+print(f"Gradient Boosting RMSE: {gb_rmse:.2f}")
+```
+
+### 9. Perform hyperparameter tuning using GridSearchCV.
+
+```python
+from sklearn.model_selection import GridSearchCV
+
+# Define a simple grid of parameters to test
+param_grid = {
+    'n_estimators': [50, 100],
+    'max_depth': [None, 10, 20]
+}
+
+# Set up GridSearchCV with the Random Forest model
+grid_search = GridSearchCV(
+    estimator=RandomForestRegressor(random_state=42),
+    param_grid=param_grid,
+    cv=3, # 3-fold cross validation
+    scoring='neg_mean_squared_error',
+    n_jobs=-1
+)
+
+# Run the search
+print("Running Grid Search... (this might take a moment)")
+grid_search.fit(X_train, y_train)
+
+# Get the best model
+best_rf_model = grid_search.best_estimator_
+print(f"Best Parameters found: {grid_search.best_params_}")
+```
+
+### 10. Evaluate final model with RMSE and cross-validation.
+
+```python
+from sklearn.model_selection import cross_val_score
+
+# 1. Evaluate on the Test Set using RMSE
+final_preds = best_rf_model.predict(X_test)
+final_rmse = np.sqrt(mean_squared_error(y_test, final_preds))
+final_r2 = r2_score(y_test, final_preds)
+
+print("--- Final Model Evaluation on Test Set ---")
+print(f"Final RMSE: {final_rmse:.2f} (lower is better)")
+print(f"Final R2 Score: {final_r2:.2f} (closer to 1.0 is better)")
+
+# 2. Evaluate using Cross-Validation on the full dataset
+# This tests the model on multiple different splits of the data
+cv_scores = cross_val_score(best_rf_model, X, y, cv=5, scoring='neg_mean_squared_error')
+cv_rmse_scores = np.sqrt(-cv_scores)
+
+print("\n--- 5-Fold Cross Validation Results ---")
+print(f"CV RMSE Scores: {np.round(cv_rmse_scores, 2)}")
+print(f"Average CV RMSE: {cv_rmse_scores.mean():.2f}")
+print(f"Standard Deviation: {cv_rmse_scores.std():.2f}")
+```
