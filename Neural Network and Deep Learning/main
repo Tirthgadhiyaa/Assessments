@@ -1,0 +1,162 @@
+
+
+**Subject:** Neural Network and Deep Learning
+
+---
+
+## Q1. What do you understand by Natural Language Processing?
+
+**Natural Language Processing (NLP)** is a branch of Artificial Intelligence (AI) that enables computers to understand, interpret, and generate human language. It acts as a bridge between human communication and computer understanding.
+
+### Core Capabilities
+
+- **Understanding Text and Speech:** Comprehending the meaning and intent behind sentences.
+- **Generating Text:** Producing coherent replies, summaries, or translations.
+- **Extracting Information:** Identifying key details such as entities, topics, or relationships from large documents.
+
+### Key Areas
+
+1. **Tokenization:** Breaking text into smaller units (words or sentences).
+2. **Sentiment Analysis:** Determining the emotion or opinion expressed in text.
+3. **Named Entity Recognition (NER):** Identifying entities like names of people, places, or organizations.
+4. **Machine Translation:** Translating text from one language to another.
+5. **Text Summarization:** Generating a concise summary of a larger document.
+6. **Speech Recognition:** Converting spoken language into text.
+
+---
+
+## Q2. What are the steps involved in solving an NLP problem?
+
+Solving an NLP problem involves a systematic process to convert raw text into a format suitable for machine learning models.
+
+### Step 1: Data Collection
+Gathering raw text data from sources such as websites, documents, or databases.
+
+### Step 2: Text Preprocessing
+Cleaning the raw text to remove noise. Common techniques include lowercasing, and removing punctuation, stop words, numbers, and extra spaces.
+
+```python
+import re
+
+text = "Hello! This is an NLP Example... 123"
+text = text.lower()
+text = re.sub(r'[^a-z\s]', '', text)
+text = text.strip()
+```
+
+### Step 3: Tokenization
+Splitting the cleaned text into smaller units called tokens (e.g., words or subwords).
+
+```python
+from nltk.tokenize import word_tokenize
+
+text = "I love natural language processing"
+tokens = word_tokenize(text)
+```
+
+### Step 4: Stemming and Lemmatization
+Reducing words to their root or base form to standardize vocabulary.
+- **Stemming:** Truncates words to a root form (e.g., "running" to "run").
+- **Lemmatization:** Converts words to their proper dictionary base form (e.g., "better" to "good").
+
+```python
+from nltk.stem import PorterStemmer, WordNetLemmatizer
+
+stemmer = PorterStemmer()
+lemmatizer = WordNetLemmatizer()
+
+print(stemmer.stem("running"))
+print(lemmatizer.lemmatize("better", pos='a'))
+```
+
+### Step 5: Feature Extraction
+Converting text tokens into numerical vectors. Common methods include Bag of Words (BoW), TF-IDF (Term Frequency-Inverse Document Frequency), and Word Embeddings (e.g., Word2Vec, GloVe).
+
+```python
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+documents = ["I love NLP", "NLP is great", "I love deep learning"]
+vectorizer = TfidfVectorizer()
+tfidf_matrix = vectorizer.fit_transform(documents)
+```
+
+### Step 6: Model Building
+Training a machine learning or deep learning model on the vectorized data (e.g., Naive Bayes, SVM, RNN/LSTM, or Transformer models like BERT).
+
+### Step 7: Model Evaluation
+Assessing the model's performance on unseen testing data using metrics such as Accuracy, Precision, Recall, and F1-Score.
+
+### Step 8: Deployment
+Integrating the trained model into a production environment for real-world application.
+
+---
+
+## Q3. What is an ensemble method in NLP? With Example.
+
+An **ensemble method** is a machine learning technique that combines multiple independent models to produce a single, more accurate, and robust predictive model. This approach typically yields better performance than any individual constituent model.
+
+### Common Ensemble Methods
+
+- **Bagging:** Trains multiple models on different random subsets of the training data and averages their predictions (e.g., Random Forest).
+- **Boosting:** Trains models sequentially, where each subsequent model attempts to correct the errors of its predecessor (e.g., AdaBoost, XGBoost).
+- **Voting:** Combines predictions from multiple distinct algorithms and outputs the majority vote (for classification) or average (for regression).
+- **Stacking:** Trains a meta-model using the predictions of several base models as input features.
+
+### Example: Sentiment Analysis using a Voting Ensemble
+
+This example demonstrates combining Naive Bayes, Logistic Regression, and a Support Vector Machine (SVM) using majority voting to classify movie reviews as positive or negative.
+
+```python
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.ensemble import VotingClassifier
+from sklearn.model_selection import train_test_split
+
+# Sample text data and labels (1 = Positive, 0 = Negative)
+reviews = [
+    "This movie is amazing and wonderful",
+    "Great film with excellent acting",
+    "I loved every moment of this movie",
+    "Terrible movie, waste of time",
+    "Worst film I have ever seen",
+    "Boring and dull, not recommended",
+    "Fantastic story and great direction",
+    "Awful acting and bad plot",
+    "A masterpiece of cinema",
+    "Very disappointing and poorly made"
+]
+labels = [1, 1, 1, 0, 0, 0, 1, 0, 1, 0]
+
+# 1. Feature Extraction
+vectorizer = TfidfVectorizer()
+X = vectorizer.fit_transform(reviews)
+
+# 2. Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(
+    X, labels, test_size=0.3, random_state=42
+)
+
+# 3. Instantiate base models
+model1 = MultinomialNB()
+model2 = LogisticRegression()
+model3 = SVC(kernel='linear', probability=True)
+
+# 4. Construct Voting Ensemble (majority vote)
+ensemble_model = VotingClassifier(
+    estimators=[
+        ('nb', model1),
+        ('lr', model2),
+        ('svm', model3)
+    ],
+    voting='hard'
+)
+
+# 5. Train the ensemble model
+ensemble_model.fit(X_train, y_train)
+
+# 6. Evaluate model accuracy
+accuracy = ensemble_model.score(X_test, y_test)
+print(f"Ensemble Model Accuracy: {accuracy * 100:.2f}%")
+```
