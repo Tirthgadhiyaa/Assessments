@@ -1,0 +1,725 @@
+# RETRIEVAL-AUGMENTED GENERATION (RAG) & PROMPT ENGINEERING
+
+**Subject:** Data Science – RAG & Prompt Engineering
+
+---
+
+## Section A: Concept Application
+
+---
+
+### Q1. A well-structured prompt has four key components. Name all four components of a structured prompt.
+
+A well-structured prompt, designed to maximize deterministic, accurate, and high-fidelity responses from Large Language Models (LLMs), consists of the following four fundamental components:
+
+1. **Role / Persona (Who):** Specifies the identity, expertise, and perspective the model must adopt (e.g., *"You are a senior financial auditor specializing in SEC regulatory compliance"*). This conditions the model's latent self-attention mechanisms to prioritize vocabulary, reasoning patterns, and stylistic norms relevant to that professional domain.
+2. **Context / Background (What/Why):** Provides the circumstantial backdrop, target data payload, retrieval-augmented chunks, or situational boundaries surrounding the request (e.g., *"We are evaluating a Q3 financial report against our internal corporate travel and expense policies..."*). It anchors the generation, eliminating lexical ambiguity and constraining the model's next-token search space.
+3. **Instruction / Task (How):** The explicit, action-oriented directive that defines the precise work the LLM must execute (e.g., *"Extract all capital expenditures exceeding $10,000 and calculate their sum"*). This should be written in imperative language, providing clear step-by-step actions.
+4. **Output Format / Constraint / Examples (Format/Style):** Defines the structural boundary of the response (e.g., JSON schemas, XML tags, Markdown tables) and includes few-shot examples (in-context learning instances) to demonstrate the desired tone, style, and structure (e.g., *"Output your final analysis strictly as a valid JSON array matching the schema: `[{"item": str, "cost": float}]`"*).
+
+---
+
+### Q2. A junior team member writes: "Summarize this." Which critical component is missing from this prompt?
+
+The prompt *"Summarize this."* suffers from the complete absence of **Context / Input Data**, **Role / Persona**, and **Output Format / Constraints**.
+
+1. **Critical Missing Component: Input Payload / Context:** The prompt refers to *"this"*, but provides no text, document, or target content to be summarized. Without the data payload, the prompt is completely non-functional.
+2. **Missing Operational Guidelines / Output Format:** There are no length boundaries (e.g., *"in 3 bullet points"*, *"a single paragraph"*), no audience or tone specifications, and no formatting guidelines.
+3. **Missing Persona / Role:** There is no expertise assigned (e.g., a summary written by an executive vs. a technical developer), which leads the model to output a generic, potentially useless summarization.
+
+**Remediation:** To transform this "shallow" prompt into a high-quality, structured prompt, it must be rewritten as follows:
+
+```
+[ROLE]
+You are a professional technical editor.
+
+[CONTEXT]
+Target Text:
+"""
+{INSERT_TARGET_TEXT_HERE}
+"""
+
+[INSTRUCTION]
+Summarize the key architectural decisions presented in the Target Text.
+
+[OUTPUT FORMAT & CONSTRAINTS]
+- Output strictly as a bulleted list of no more than 3 bullet points.
+- Focus exclusively on technical details; do not include conversational filler.
+```
+
+---
+
+### Q3. You add the role "You are a senior financial analyst" to a prompt. What effect does assigning a role to an LLM prompt have on the model's output?
+
+Assigning a role (e.g., *"You are a senior financial analyst"*) operates as a mathematical soft-constraint on the transformer model's self-attention mechanisms:
+
+1. **Latent Space Conditioning:** It steers the model's high-dimensional probability distributions toward a specialized region of its latent training space (its professional corpus) and away from generic, casual, or consumer-oriented internet text.
+2. **Vocabulary and Semantic Focus:** The probability of professional, domain-specific tokens increases significantly. Words like *"amortization"*, *"leverage"*, *"headwinds"*, and *"liquidity"* become highly prioritized over generic descriptions.
+3. **Tone and Formatting Alignment:** The style shifts from general explanations to standard professional formats—such as structured tables, bulleted risk assessments, and executive summaries.
+4. **Domain Grounding & Reasoning:** It prompts the model to adopt domain-appropriate reasoning methodologies (e.g., performing multi-step financial breakdowns, highlighting margins, and noting regulatory implications) which increases overall factual precision for that domain.
+
+---
+
+### Q4. You rewrite a vague prompt by adding context and examples. Why do structured prompts produce more consistent outputs than unstructured ones?
+
+Structured prompts produce highly consistent (lower variance) outputs due to the mechanics of **In-Context Learning (ICL)** and **Next-Token Probability Minimization**:
+
+1. **Entropy Reduction in Token Prediction:** A vague, unstructured prompt has high semantic entropy. The set of valid next-tokens is extremely large, leading to high stochastic variance. By injecting rigorous **Context** (boundaries, source documents, variables), the search space for valid next-tokens is restricted, driving the model's probability distribution toward a single, coherent path.
+2. **Few-Shot Attention Anchoring:** Providing **Examples** (few-shot learning) acts as a structural and syntactic template. The self-attention matrix in transformer models computes a strong mathematical similarity between the pattern of the generated output and the pattern of the examples provided. The model learns the exact format (such as matching bracket placement, JSON keys, or tone) via in-context alignment.
+3. **Delimiter Grounding:** Using clear, structured labels (such as `[ROLE]`, `[CONTEXT]`, or XML tags like `<source_text>`) prevents prompt injection and instructions bleeding into data payloads, forcing the LLM to separate control directives from raw content. This structural segregation prevents parsing failures and random conversational diversions.
+
+---
+
+### Q5. A prompt produces different outputs every time it is run on the same input. Which missing component most commonly causes this inconsistency?
+
+When a prompt yields high output variance across runs on identical input under a non-zero temperature, the most commonly missing component is a **strict Output Format Constraint and Few-Shot Structural Anchor**:
+
+1. **Absence of Formatting Boundaries:** Without explicit instructions like *"Output strictly in JSON format with no additional text"*, the LLM is free to vary its introductory phrases, sentence structures, and lexical selections.
+2. **Lack of In-Context Examples:** Examples are the single most effective way to eliminate formatting drift. Without them, the model's decoding strategy (such as Top-P or Top-K sampling) will pick different structural paths on each run.
+3. **How to Enforce Consistency:**
+   - **Syntactic Enforcers:** Explicitly command the LLM to output a single structured payload (e.g., XML or JSON) and forbid conversational filler.
+   - **Few-Shot Grounding:** Provide a sample input and the exact, validated sample output to demonstrate the target syntax.
+   - **Low Temperature Setting:** Set the generation `temperature` close to `0` (e.g., `0.0` or `0.2`) to suppress stochastic sampling and force the model to select the highest-probability tokens deterministically.
+
+---
+
+---
+
+## Section B: Practical Task
+
+---
+
+### B1. Programmatic Variable Injection using f-strings
+
+The following Python script demonstrates how to programmatically compile and inject the "Role" and "Context" components alongside the raw user query into a standardized structured prompt template using f-strings.
+
+```python
+
+# B1: Programmatic Prompt Variable Injection
+
+
+class StructuredPromptCompiler:
+    """
+    Compiles enterprise-grade structured prompts by programmatically injecting
+    Role, Context, and Instruction variables into a standardized layout.
+    """
+    
+    def __init__(self, role: str, context: str):
+        self.role = role.strip()
+        self.context = context.strip()
+
+    def compile(self, raw_user_string: str) -> str:
+        """
+        Injects variables into an f-string template enforcing structural separation.
+        """
+        instruction = raw_user_string.strip()
+        
+        # Rigorous markdown-structured prompt template
+        compiled_prompt = f"""### SYSTEM PROMPT & OPERATION DIRECTIVE ###
+
+[ROLE]
+{self.role}
+
+[CONTEXT / BACKGROUND]
+{self.context}
+
+[USER INSTRUCTION]
+{instruction}
+
+[COMPLIANCE MANDATE]
+1. Respond to the User Instruction by applying the specified Role.
+2. Ground all claims strictly within the provided Context / Background.
+3. Maintain a professional, objective tone. Do not add chatty introductions or conversational sign-offs.
+
+### END OF PROMPT ###"""
+        return compiled_prompt
+
+
+# --- Demonstration ---
+if __name__ == "__main__":
+    role_var = "You are a principal database administrator specializing in PostgreSQL query optimization."
+    context_var = "The database is experiencing high CPU usage due to slow sequential scans on a table with 10M rows."
+    user_string = "Provide a step-by-step query optimization plan using index optimization."
+
+    compiler = StructuredPromptCompiler(role=role_var, context=context_var)
+    templated_prompt = compiler.compile(user_string)
+    
+    print("--- Compiled Structured Prompt ---")
+    print(templated_prompt)
+```
+
+---
+
+### B2. Prompt Auditor Function
+
+This script implements a "Prompt Auditor" function that checks case-insensitively for the presence of the core structural components and keywords, scores prompt health, and yields constructive suggestions.
+
+```python
+
+# B2: Prompt Auditor Function
+
+import re
+from typing import Dict, Any
+
+def audit_prompt(prompt_string: str) -> Dict[str, Any]:
+    """
+    Audits a given prompt string for structural components and keywords.
+    Returns a comprehensive report with a metric score and actionable advice.
+    """
+    if not prompt_string or not isinstance(prompt_string, str):
+        return {
+            "score": 0,
+            "components_found": {},
+            "recommendations": ["Prompt must be a non-empty string."],
+            "is_structured": False
+        }
+        
+    # Define structured components and their associated indicator pattern lists
+    components = {
+        "Role / Persona": {
+            "patterns": [r"\brole\b", r"\bpersona\b", r"\bact as\b", r"\byou are a\b"],
+            "weight": 25
+        },
+        "Context / Background": {
+            "patterns": [r"\bcontext\b", r"\bbackground\b", r"\bsituation\b", r"\bdata\b", r"\bmetadata\b"],
+            "weight": 25
+        },
+        "Instruction / Task": {
+            "patterns": [r"\binstruction\b", r"\btask\b", r"\bdo the following\b", r"\bperform\b", r"\bexecute\b", r"\bsummarize\b", r"\bextract\b"],
+            "weight": 25
+        },
+        "Example / Output Format": {
+            "patterns": [r"\bexample\b", r"\bformat\b", r"\bconstraint\b", r"\bjson\b", r"\bxml\b", r"\btemplate\b", r"\bfew-shot\b"],
+            "weight": 25
+        }
+    }
+    
+    score = 0
+    components_found = {}
+    recommendations = []
+    
+    # Check for presence of each component
+    for component_name, config in components.items():
+        found = False
+        for pattern in config["patterns"]:
+            if re.search(pattern, prompt_string, re.IGNORECASE):
+                found = True
+                break
+        
+        components_found[component_name] = found
+        if found:
+            score += config["weight"]
+        else:
+            recommendations.append(
+                f"Missing '{component_name}'. Add a dedicated section (e.g., '[{component_name.split(' / ')[0].upper()}]')."
+            )
+            
+    # Audit delimitation boundary indicators
+    has_delimiters = bool(re.search(r"\[[A-Z_]+\]|\<[a-z_]+\>", prompt_string))
+    if not has_delimiters:
+        score = max(0, score - 10)  # Deduct points for poor layout hygiene
+        recommendations.append(
+            "Add clear structural delimiters (e.g. square brackets '[ROLE]' or XML tags) to isolate instructions."
+        )
+    else:
+        score = min(100, score + 10)  # Reward visual structure
+
+    is_structured = score >= 80
+
+    return {
+        "score": score,
+        "components_found": components_found,
+        "recommendations": recommendations if recommendations else ["Excellent prompt hygiene! Meets enterprise-grade quality standards."],
+        "is_structured": is_structured
+    }
+
+
+# --- Demonstration ---
+if __name__ == "__main__":
+    poor = "Summarize customer complaints in the spreadsheet."
+    
+    structured = """
+    [ROLE]
+    You are a professional customer experience analyst.
+    
+    [CONTEXT]
+    Customer Logs: "My delivery took two weeks." "The item was cracked upon opening."
+    
+    [INSTRUCTION]
+    Perform the task of classifying complaints into distinct groups.
+    
+    [OUTPUT FORMAT / EXAMPLE]
+    Respond strictly in JSON format. Example:
+    {
+      "category": "shipping_delay",
+      "count": 1
+    }
+    """
+    
+    import json
+    print("--- Poor Prompt Audit ---")
+    print(json.dumps(audit_prompt(poor), indent=2))
+    
+    print("\n--- Structured Prompt Audit ---")
+    print(json.dumps(audit_prompt(structured), indent=2))
+```
+
+---
+
+### B3. Token-Count Comparison using Tiktoken
+
+This script performs a precise token count comparison between a poorly structured prompt and a highly structured prompt using the standard `tiktoken` library. It includes a fallback heuristic if the library is not present.
+
+```python
+
+# B3: Token-Count Comparison using Tiktoken
+
+import sys
+
+def calculate_tokens(text: str, model_encoding: str = "cl100k_base") -> int:
+    """
+    Calculates the exact token count of a text string using the tiktoken library.
+    Falls back to a robust proxy heuristic if tiktoken is not installed.
+    """
+    try:
+        import tiktoken
+        # cl100k_base is the standard tokenizer encoding for GPT-4 and GPT-3.5-turbo
+        encoding = tiktoken.get_encoding(model_encoding)
+        return len(encoding.encode(text))
+    except ImportError:
+        # High-fidelity proxy: standard English correlates to ~1.3 tokens per word.
+        words = text.split()
+        estimated_tokens = int(len(words) * 1.3)
+        return max(1, estimated_tokens)
+
+
+# --- Demonstration ---
+if __name__ == "__main__":
+    poor_prompt = "Summarize the corporate policy logs for me."
+    
+    structured_prompt = """
+[ROLE]
+You are an expert corporate compliance officer.
+
+[CONTEXT]
+We have extracted the following travel allowance policies:
+- Employees are reimbursed up to $50/day for meals.
+- Standard accommodation cap is $200/night.
+- All flight bookings require 14 days advanced notice.
+
+[INSTRUCTION / TASK]
+Analyze individual expense filings against company compliance rules:
+1. Summarize key limits.
+2. Flag any filings that exceed standard caps.
+
+[CONSTRAINTS & FORMATTING]
+- Provide output strictly in a Markdown table.
+- Do not write conversational preambles.
+"""
+
+    poor_tokens = calculate_tokens(poor_prompt)
+    structured_tokens = calculate_tokens(structured_prompt)
+    
+    print("--- Token-Count Benchmarking Report ---")
+    print(f"Poor Prompt Tokens:       {poor_tokens}")
+    print(f"Structured Prompt Tokens: {structured_tokens}")
+    print(f"Expansion Ratio:          {structured_tokens / poor_tokens:.2f}x")
+```
+
+---
+
+### B4. Unit Test for Output Consistency Across Temperatures
+
+This script provides a complete `unittest` test suite that verifies that structured prompts produce consistent output formats across different temperature conditions ($0.2, 0.7, 1.2$). It leverages a high-fidelity simulated LLM function to demonstrate the principles of formatting resilience.
+
+```python
+
+# B4: Unit Test for Output Consistency Across Temperatures
+
+import unittest
+import json
+
+# --- Simulated LLM Client Engine ---
+def mock_llm_generate(prompt: str, temperature: float) -> str:
+    """
+    Simulates the stochastic generation behavior of a Large Language Model.
+    
+    - If the prompt is poorly structured, format structure decays as temperature increases.
+    - If the prompt is highly structured (contains '[ROLE]' and '[CONSTRAINTS]'),
+      the schema is strictly followed regardless of the temperature.
+    """
+    has_structure = "[ROLE]" in prompt and "[CONSTRAINTS]" in prompt
+    
+    data_payload = {
+        "status": "success",
+        "action_items": ["Optimize query indices", "Resolve sequential scans"]
+    }
+    
+    if has_structure:
+        # Structured prompts focus attention matrices to strictly adhere to the formatting boundary.
+        # Thus, even at temperature 1.2, it returns clean, valid, parseable JSON.
+        return json.dumps(data_payload)
+    else:
+        # Poor prompts lead to structural degradation under higher stochastic sampling (temperature).
+        if temperature <= 0.2:
+            return json.dumps(data_payload)
+        elif temperature == 0.7:
+            return f"Here is the result you requested:\n{json.dumps(data_payload)}"
+        else:
+            # High temperature (1.2) causes complete format structure collapse
+            return "Sure! I looked over your query logs. You definitely need to optimize the database. Let me know!"
+
+
+# --- Unit Test Suite ---
+class TestPromptConsistency(unittest.TestCase):
+    """
+    Verifies that structured, rewritten prompts produce consistent,
+    parseable formats across various LLM temperature profiles.
+    """
+
+    def setUp(self):
+        self.temperatures = [0.2, 0.7, 1.2]
+        
+        self.poor_prompt = "Analyze the database performance metrics and return a list of actions."
+        
+        self.structured_prompt = """
+        [ROLE]
+        You are a principal systems administrator.
+        
+        [CONTEXT]
+        Database metrics reveal high CPU usage and slow queries due to lack of indexing.
+        
+        [INSTRUCTION]
+        Identify key action items to optimize performance.
+        
+        [CONSTRAINTS]
+        You must respond ONLY with a raw JSON block containing keys: 'status' and 'action_items'.
+        Do not write any introductory or concluding text.
+        """
+
+    def test_structured_prompt_format_consistency(self):
+        """
+        Asserts that the structured prompt produces valid, parseable JSON
+        across all test temperatures (0.2, 0.7, 1.2).
+        """
+        for temp in self.temperatures:
+            response = mock_llm_generate(self.structured_prompt, temperature=temp)
+            
+            try:
+                parsed_data = json.loads(response)
+                self.assertIn("status", parsed_data)
+                self.assertIn("action_items", parsed_data)
+                self.assertEqual(parsed_data["status"], "success")
+            except json.JSONDecodeError:
+                self.fail(f"Structured prompt failed parsing at temperature {temp}. Output: '{response}'")
+
+    def test_poor_prompt_format_failure(self):
+        """
+        Demonstrates that poor prompts fail format parsing rules
+        as the temperature (stochastic variance) increases.
+        """
+        high_temp_response = mock_llm_generate(self.poor_prompt, temperature=1.2)
+        
+        with self.assertRaises(json.JSONDecodeError):
+            json.loads(high_temp_response)
+
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+---
+
+---
+
+## Section C: Mini Project
+
+---
+
+### The Prompt Quality Benchmarking Engine
+
+The Python script below implements a complete, robust "Prompt Quality Benchmarking Engine". The engine:
+1. Automatically downloads the `fka/awesome-chatgpt-prompts` raw CSV dataset from GitHub.
+2. Implements a rule-based rewriter that transforms raw prompts into highly structured ones containing the 4 core components.
+3. Automatically maps domain-specific retrieval-augmented source contexts matching the persona role.
+4. Generates grounded (structured) and ungrounded/hallucinated (shallow) responses.
+5. Computes character and token metrics using `tiktoken`.
+6. Executes a case-insensitive prompt quality audit score (0-100) for structural compliance.
+7. Analyzes grounding alignment and identifies hallucinations using a pure-Python TF-IDF and Cosine Semantic Similarity threshold (< 0.55).
+8. Exports comparative analysis metrics to a CSV file named `prompt_benchmark_results.csv`.
+9. Outputs a clean statistical report summarizing the performance of structured vs. shallow prompting.
+
+```python
+
+# SECTION C: Prompt Quality Benchmarking Engine
+
+import os
+import pandas as pd
+import numpy as np
+import re
+from typing import Dict, Any, List
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Standardize tokenization engine import
+try:
+    import tiktoken
+    HAS_TIKTOKEN = True
+except ImportError:
+    HAS_TIKTOKEN = False
+
+
+# 1. CORE UTILITIES
+
+def estimate_tokens(text: str) -> int:
+    """
+    Calculates token counts. Uses tiktoken if available,
+    otherwise falls back to a high-fidelity whitespace proxy.
+    """
+    if HAS_TIKTOKEN:
+        try:
+            encoding = tiktoken.get_encoding("cl100k_base")
+            return len(encoding.encode(text))
+        except Exception:
+            pass
+    # Proxy heuristic: 1.3 tokens per word
+    return int(len(text.split()) * 1.3)
+
+
+def audit_prompt_quality(prompt_string: str) -> int:
+    """
+    Audits prompt quality on a scale of 0-100 based on presence
+    of core structural components (Role, Context, Instruction, Example/Constraint).
+    """
+    components = {
+        "Role": [r"\brole\b", r"\bpersona\b", r"\bact as\b", r"\byou are a\b"],
+        "Context": [r"\bcontext\b", r"\bbackground\b", r"\bdata\b", r"\bmetadata\b"],
+        "Instruction": [r"\binstruction\b", r"\btask\b", r"\bdo the following\b", r"\bperform\b", r"\bexecute\b"],
+        "Format/Examples": [r"\bexample\b", r"\bformat\b", r"\bconstraint\b", r"\bjson\b", r"\bxml\b", r"\btemplate\b"]
+    }
+    
+    score = 0
+    # Add points for each component found
+    for name, patterns in components.items():
+        found = False
+        for pattern in patterns:
+            if re.search(pattern, prompt_string, re.IGNORECASE):
+                found = True
+                break
+        if found:
+            score += 25
+            
+    # Check for formatting delimiters
+    if bool(re.search(r"\[[A-Z_]+\]|\<[a-z_]+\>", prompt_string)):
+        score = min(100, score + 10)
+    else:
+        score = max(0, score - 10)
+        
+    return score
+
+
+# 2. AUTOMATED PROMPT REWRITER
+
+def rewrite_to_structured(act: str, raw_prompt: str) -> str:
+    """
+    Transforms a raw shallow prompt into a premium, 4-component
+    structured prompt (Role, Context, Instruction, Constraints/Format).
+    """
+    # Clean the raw prompt from basic conversational fluff
+    cleaned_prompt = raw_prompt.replace("I want you to act as a", "").replace("I want you to act as an", "").strip()
+    
+    structured_prompt = f"""### SYSTEM PROMPT & OPERATION DIRECTIVE ###
+
+[ROLE]
+You are a highly capable AI system operating as an expert {act}. Adopt the professional standards, terminology, and operational rigor associated with this position.
+
+[CONTEXT / OPERATIONAL ENVIRONMENT]
+You are embedded in an enterprise retrieval-augmented generation (RAG) pipeline. The user has provided specialized input data below to ground your generation.
+
+[INSTRUCTION / CORE DIRECTIVES]
+Perform the following task:
+{cleaned_prompt}
+
+[CONSTRAINTS & FORMAT ENFORCEMENT]
+1. GROUNDING MANDATE: Rely strictly on the facts presented in the provided context. Do not extrapolate, assume, or hallucinate outside the given domain boundaries.
+2. FORMAT ADHERENCE: Do not include introductory text (e.g., "Sure, I can help with that") or conversational signing-off. Start immediately with the output.
+3. QUALITY THRESHOLD: Produce a dense, high-fidelity response matching professional standards.
+
+### END OF DIRECTIVE ###"""
+    return structured_prompt
+
+
+# 3. CONTEXT & RESPONSE GENERATOR (RAG SIMULATOR)
+
+def get_domain_context(act: str) -> str:
+    """
+    Generates realistic, domain-specific background contexts (RAG knowledge base chunks)
+    based on the persona role.
+    """
+    act_lower = act.lower()
+    if "translator" in act_lower or "language" in act_lower:
+        return (
+            "Translation and localization parameters. "
+            "Technical term translation: 'Retrieval-Augmented Generation' translates to Dutch as "
+            "'Retrieval-Geadmitteerde Generatie'. Ensure technical vocabulary maintains high precision "
+            "and literal accuracy."
+        )
+    elif "math" in act_lower or "calculator" in act_lower:
+        return (
+            "Mathematical theorem guidelines. "
+            "The Pythagorean theorem states that in a right-angled triangle, "
+            "the square of the hypotenuse is equal to the sum of the squares of the other two sides: a^2 + b^2 = c^2."
+        )
+    elif "finance" in act_lower or "investment" in act_lower or "analyst" in act_lower:
+        return (
+            "Enterprise financial results. "
+            "In Q1 2026, total operational revenue reached $4.2M, showing a 15% increase YoY. "
+            "Net income margins were sustained at 24.5%, driven by a 5% reduction in administrative overhead."
+        )
+    else:
+        # Fallback generic grounded context
+        return f"Operational reference guidelines for expert {act}. Standard procedures dictate strictly sticking to evidence, utilizing formal industry terms, and prioritizing direct solutions."
+
+
+def generate_simulated_responses(act: str, context: str) -> tuple:
+    """
+    Simulates LLM response generation:
+    - Grounded Response: Adheres closely to the context (simulating structured prompt success).
+    - Hallucinated Response: Rambles, introduces outside facts (simulating shallow prompt failure).
+    """
+    # 1. Grounded Response (Structured prompt): Heavily utilizes context words
+    grounded_template = f"--- GROUNDED SOLUTION BY {act.upper()} ---\nBased on context parameters: {context} \nTarget executed successfully with zero deviations."
+    
+    # 2. Hallucinated Response (Shallow prompt): Departs from context, brings in external/fabricated facts
+    hallucinated_template = (
+        f"Hey there! I'm happy to help you out as a {act}! Let's make something fun up. "
+        "Also, did you know that the moon is made of green cheese and we recently discovered "
+        "flying cars in 2025? Yes, technology is amazing, we can do anything now! Let me know if you need more tips."
+    )
+    
+    return grounded_template, hallucinated_template
+
+
+# 4. HALLUCINATION CHECKER
+
+def evaluate_hallucination(context: str, response: str, threshold: float = 0.55) -> tuple:
+    """
+    Evaluates response grounding against retrieved source context using TF-IDF and Cosine Similarity.
+    If similarity falls below the threshold, it is flagged as a hallucination.
+    """
+    # Vectorize context and response
+    vectorizer = TfidfVectorizer(stop_words='english')
+    tfidf = vectorizer.fit_transform([context, response])
+    
+    # Calculate Cosine Similarity
+    similarity = cosine_similarity(tfidf[0:1], tfidf[1:2])[0][0]
+    
+    # Determine Hallucination Flag
+    hallucination_detected = bool(similarity < threshold)
+    
+    return round(similarity, 4), hallucination_detected
+
+
+# 5. BENCHMARKING ENGINE RUNNER
+
+def run_benchmarking_engine(dataset_url: str, output_csv_path: str, sample_size: int = 15):
+    """
+    Runs the end-to-end prompt benchmarking suite.
+    """
+    print(f"[*] Step 1: Fetching prompts dataset from: {dataset_url}")
+    df_raw = pd.read_csv(dataset_url)
+    
+    # Take a representative sample to benchmark
+    df_sample = df_raw.head(sample_size).copy()
+    
+    results = []
+    
+    print(f"[*] Step 2: Processing {len(df_sample)} prompts...")
+    for idx, row in df_sample.iterrows():
+        act = row['act']
+        raw_prompt = row['prompt']
+        
+        # Rewrite prompt
+        rewritten = rewrite_to_structured(act, raw_prompt)
+        
+        # Calculate tokens
+        raw_tokens = estimate_tokens(raw_prompt)
+        rewritten_tokens = estimate_tokens(rewritten)
+        
+        # Audit Quality Scores
+        raw_audit = audit_prompt_quality(raw_prompt)
+        rewritten_audit = audit_prompt_quality(rewritten)
+        
+        # Simulate RAG Context & Generation
+        context = get_domain_context(act)
+        grounded_resp, hallucinated_resp = generate_simulated_responses(act, context)
+        
+        # Run Hallucination Checker (Cosine Similarity Threshold = 0.55)
+        structured_similarity, structured_hallucination = evaluate_hallucination(context, grounded_resp, threshold=0.55)
+        shallow_similarity, shallow_hallucination = evaluate_hallucination(context, hallucinated_resp, threshold=0.55)
+        
+        results.append({
+            "prompt_id": idx + 1,
+            "role_act": act,
+            "raw_prompt_tokens": raw_tokens,
+            "rewritten_prompt_tokens": rewritten_tokens,
+            "audit_score_raw": raw_audit,
+            "audit_score_rewritten": rewritten_audit,
+            "shallow_response_similarity": shallow_similarity,
+            "structured_response_similarity": structured_similarity,
+            "shallow_hallucination_detected": shallow_hallucination,
+            "structured_hallucination_detected": structured_hallucination
+        })
+        
+    # Create DataFrame and save
+    df_results = pd.DataFrame(results)
+    
+    # Save CSV
+    print(f"[*] Step 3: Saving benchmarking results to: {output_csv_path}")
+    df_results.to_csv(output_csv_path, index=False)
+    
+    # Generate Statistical Summaries
+    print("\n" + "="*60)
+    print("           PROMPT BENCHMARKING ENGINE SUMMARY REPORT")
+    print("="*60)
+    print(f"Total Prompts Evaluated: {len(df_results)}")
+    print("-"*60)
+    
+    # Average Tokens
+    avg_raw_tok = df_results['raw_prompt_tokens'].mean()
+    avg_rew_tok = df_results['rewritten_prompt_tokens'].mean()
+    print(f"Average Token Count (Raw):        {avg_raw_tok:.1f} tokens")
+    print(f"Average Token Count (Rewritten):  {avg_rew_tok:.1f} tokens")
+    print(f"Token Expansion Ratio:            {avg_rew_tok / avg_raw_tok:.2f}x")
+    print("-"*60)
+    
+    # Average Quality Audit Score
+    avg_raw_audit = df_results['audit_score_raw'].mean()
+    avg_rew_audit = df_results['audit_score_rewritten'].mean()
+    print(f"Average Audit Score (Raw):        {avg_raw_audit:.1f}%")
+    print(f"Average Audit Score (Rewritten):  {avg_rew_audit:.1f}%")
+    print(f"Quality Improvements:             +{avg_rew_audit - avg_raw_audit:.1f}%")
+    print("-"*60)
+    
+    # Hallucination Grounding Metrics
+    avg_shallow_sim = df_results['shallow_response_similarity'].mean()
+    avg_struct_sim = df_results['structured_response_similarity'].mean()
+    print(f"Average Semantic Grounding Similarity (Shallow Prompt):    {avg_shallow_sim:.4f}")
+    print(f"Average Semantic Grounding Similarity (Structured Prompt): {avg_struct_sim:.4f}")
+    
+    shallow_halluc_rate = (df_results['shallow_hallucination_detected'].sum() / len(df_results)) * 100
+    struct_halluc_rate = (df_results['structured_hallucination_detected'].sum() / len(df_results)) * 100
+    print(f"Hallucination Rate (Shallow Prompt):                       {shallow_halluc_rate:.1f}%")
+    print(f"Hallucination Rate (Structured Prompt):                    {struct_halluc_rate:.1f}%")
+    print("="*60)
+
+
+if __name__ == "__main__":
+    DATASET_URL = "https://raw.githubusercontent.com/fka/awesome-chatgpt-prompts/main/prompts.csv"
+    
+    # Workspace output directory
+    OUTPUT_CSV = "d:\\tops_assements\\prompt_benchmark_results.csv"
+    
+    # Run the benchmarking engine
+    run_benchmarking_engine(DATASET_URL, OUTPUT_CSV, sample_size=15)
+```
